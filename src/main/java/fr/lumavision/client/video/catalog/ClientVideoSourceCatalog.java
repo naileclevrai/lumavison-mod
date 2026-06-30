@@ -110,6 +110,25 @@ public final class ClientVideoSourceCatalog implements VideoSourceCatalog {
     }
 
     @Override
+    public Optional<VideoSourceProvider> findProviderById(String providerId) {
+        return providers.stream()
+                .filter(provider -> provider.providerId().equals(providerId))
+                .findFirst();
+    }
+
+    @Override
+    public List<CatalogSourceEntry> listSourcesForProvider(String providerId) {
+        return findProviderById(providerId)
+                .map(VideoSourceProvider::listSources)
+                .orElseGet(List::of);
+    }
+
+    @Override
+    public void refreshProvider(String providerId) {
+        findProviderById(providerId).ifPresent(VideoSourceProvider::refreshSources);
+    }
+
+    @Override
     public VideoSourceDescriptor resolve(LedScreenBlockEntity originBlock) {
         if (originBlock.hasExplicitSourceId()) {
             VideoSourceDescriptor explicit = VideoSourceDescriptors.parse(originBlock.getSourceId());

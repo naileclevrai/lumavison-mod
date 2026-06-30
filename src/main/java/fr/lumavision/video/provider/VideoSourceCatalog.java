@@ -22,6 +22,12 @@ public interface VideoSourceCatalog extends VideoSourceFactory {
 
     Optional<VideoSourceProvider> providerFor(VideoSourceDescriptor descriptor);
 
+    Optional<VideoSourceProvider> findProviderById(String providerId);
+
+    List<CatalogSourceEntry> listSourcesForProvider(String providerId);
+
+    void refreshProvider(String providerId);
+
     /**
      * Resolves which descriptor a merged wall should render.
      */

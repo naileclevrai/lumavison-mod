@@ -62,4 +62,11 @@ public interface VideoSourceProvider {
     VideoSource create(VideoSourceDescriptor descriptor, int targetWidth, int targetHeight);
 
     List<ProviderConfigOption> getConfigOptions();
+
+    /**
+     * Requests a refresh of discoverable sources (e.g. after the user clicks Refresh in the GUI).
+     * Default implementation is a no-op when discovery is already continuous.
+     */
+    default void refreshSources() {
+    }
 }
