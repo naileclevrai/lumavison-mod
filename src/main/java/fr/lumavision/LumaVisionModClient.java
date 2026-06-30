@@ -10,7 +10,7 @@ import net.minecraftforge.fml.event.lifecycle.FMLCommonSetupEvent;
 /**
  * Client-side and common initialization.
  * <p>
- * LED screen renderers and dynamic textures will be wired here later.
+ * LED screen renderers are registered in {@link fr.lumavision.client.LumaVisionClientMod}.
  */
 @Mod.EventBusSubscriber(modid = LumaVisionMod.MOD_ID, bus = Mod.EventBusSubscriber.Bus.MOD)
 public final class LumaVisionModClient {
