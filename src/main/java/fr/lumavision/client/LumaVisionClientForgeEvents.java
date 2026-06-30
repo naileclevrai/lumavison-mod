@@ -1,14 +1,20 @@
 package fr.lumavision.client;
 
 import fr.lumavision.LumaVisionMod;
+import fr.lumavision.client.ndi.NdiProvider;
 import fr.lumavision.client.texture.ScreenTextureManager;
+import fr.lumavision.config.ModConfig;
 import net.minecraft.client.Minecraft;
 import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.client.event.ClientPlayerNetworkEvent;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.event.level.LevelEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 
+/**
+ * Client lifecycle hooks: texture cleanup must run on the render thread.
+ */
 @Mod.EventBusSubscriber(modid = LumaVisionMod.MOD_ID, bus = Mod.EventBusSubscriber.Bus.FORGE, value = Dist.CLIENT)
 public final class LumaVisionClientForgeEvents {
 
@@ -29,7 +35,17 @@ public final class LumaVisionClientForgeEvents {
     @SubscribeEvent
     public static void onLevelUnload(LevelEvent.Unload event) {
         if (event.getLevel().isClientSide()) {
-            ScreenTextureManager.getInstance().clear();
+            scheduleTextureCleanup();
         }
+    }
+
+    @SubscribeEvent
+    public static void onClientLogout(ClientPlayerNetworkEvent.LoggingOut event) {
+        scheduleTextureCleanup();
+    }
+
+    private static void scheduleTextureCleanup() {
+        Minecraft minecraft = Minecraft.getInstance();
+        minecraft.execute(ScreenTextureManager.getInstance()::clear);
     }
 }

@@ -78,7 +78,15 @@ public final class DynamicTextureHandle implements AutoCloseable {
 
     @Override
     public void close() {
-        Minecraft.getInstance().getTextureManager().release(location);
-        texture.close();
+        Minecraft minecraft = Minecraft.getInstance();
+        Runnable cleanup = () -> {
+            minecraft.getTextureManager().release(location);
+            texture.close();
+        };
+        if (minecraft.isSameThread()) {
+            cleanup.run();
+        } else {
+            minecraft.execute(cleanup);
+        }
     }
 }

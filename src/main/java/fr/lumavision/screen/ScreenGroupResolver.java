@@ -118,6 +118,9 @@ public final class ScreenGroupResolver {
         }
         for (Direction direction : Direction.values()) {
             BlockPos neighbor = center.relative(direction);
+            if (!level.hasChunkAt(neighbor)) {
+                continue;
+            }
             if (isLedScreen(level, neighbor)) {
                 seeds.add(neighbor);
             }
@@ -147,6 +150,9 @@ public final class ScreenGroupResolver {
 
             for (BlockPos neighbor : plane.wallNeighbors(pos)) {
                 if (component.contains(neighbor)) {
+                    continue;
+                }
+                if (!level.hasChunkAt(neighbor)) {
                     continue;
                 }
                 LedScreenBlockEntity neighborEntity = getScreen(level, neighbor);

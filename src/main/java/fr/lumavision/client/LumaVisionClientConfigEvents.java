@@ -3,6 +3,7 @@ package fr.lumavision.client;
 import fr.lumavision.LumaVisionMod;
 import fr.lumavision.client.ndi.NdiProvider;
 import fr.lumavision.config.ModConfig;
+import net.minecraft.client.Minecraft;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
@@ -18,16 +19,13 @@ public final class LumaVisionClientConfigEvents {
     }
 
     @SubscribeEvent
-    public static void onConfigLoad(ModConfigEvent.Loading event) {
-        if (event.getConfig().getSpec() == ModConfig.SPEC) {
-            NdiProvider.applyConfig();
-        }
-    }
-
-    @SubscribeEvent
     public static void onConfigReload(ModConfigEvent.Reloading event) {
-        if (event.getConfig().getSpec() == ModConfig.SPEC) {
-            NdiProvider.applyConfig();
+        if (event.getConfig().getSpec() != ModConfig.SPEC) {
+            return;
+        }
+        Minecraft minecraft = Minecraft.getInstance();
+        if (minecraft != null) {
+            minecraft.execute(NdiProvider::applyConfig);
         }
     }
 }

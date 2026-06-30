@@ -51,9 +51,15 @@ public final class NdiDiscoveryService {
 
     public synchronized void shutdown() {
         running = false;
-        if (discoveryThread != null) {
-            discoveryThread.interrupt();
-            discoveryThread = null;
+        Thread thread = discoveryThread;
+        discoveryThread = null;
+        if (thread != null) {
+            thread.interrupt();
+            try {
+                thread.join(2000L);
+            } catch (InterruptedException interrupted) {
+                Thread.currentThread().interrupt();
+            }
         }
         if (finder != null) {
             finder.close();
