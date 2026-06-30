@@ -2,6 +2,7 @@ package fr.lumavision.client.texture;
 
 import fr.lumavision.blockentity.LedScreenBlockEntity;
 import fr.lumavision.client.display.DisplayColorGrading;
+import fr.lumavision.client.shimmer.LedAmbilightController;
 import fr.lumavision.client.video.catalog.ClientVideoSourceCatalog;
 import fr.lumavision.config.ModConfig;
 import fr.lumavision.screen.ScreenDisplaySettings;
@@ -69,6 +70,7 @@ public final class ScreenTextureManager {
         for (ScreenPipeline pipeline : pipelines.values()) {
             pipeline.tick(level);
         }
+        LedAmbilightController.getInstance().pruneExcept(pipelines.keySet());
     }
 
     public void clear() {
@@ -77,6 +79,7 @@ public final class ScreenTextureManager {
         }
         pipelines.clear();
         pendingOrigins.clear();
+        LedAmbilightController.getInstance().clear();
         if (fallbackTexture != null) {
             fallbackTexture.close();
             fallbackTexture = null;
@@ -234,9 +237,21 @@ public final class ScreenTextureManager {
                 ensureGradedFrameSize(frame.getWidth(), frame.getHeight());
                 DisplayColorGrading.applyInto(frame, gradedFrame, displaySettings);
                 texture.upload(gradedFrame);
+                notifyAmbilight(level, gradedFrame, displaySettings);
             } else {
                 texture.upload(frame);
+                notifyAmbilight(level, frame, displaySettings);
             }
+        }
+
+        private void notifyAmbilight(Level level, VideoFrame uploadedFrame, ScreenDisplaySettings displaySettings) {
+            LedAmbilightController.getInstance().onFrameUploaded(
+                    membership.groupKey(),
+                    uploadedFrame,
+                    membership,
+                    displaySettings,
+                    level
+            );
         }
 
         private void ensureGradedFrameSize(int width, int height) {
@@ -248,6 +263,7 @@ public final class ScreenTextureManager {
 
         @Override
         public void close() {
+            LedAmbilightController.getInstance().removeLight(membership.groupKey());
             source.dispose();
             texture.close();
         }

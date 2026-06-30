@@ -138,6 +138,30 @@ debugLogging = true                  # lists discovered sources in the log
 
 > NDI usage is subject to the [NDI SDK license terms](https://ndi.video). Devolay is bundled via **jarJar** (`lumavision-*-all.jar`) and loaded through Forge's `minecraftLibrary` in development.
 
+### Shimmer ambilight (optional)
+
+When the [Shimmer](https://modrinth.com/mod/shimmer) mod is installed on the client, LumaVision can emit **one dynamic point light per merged LED wall**, colored from the average of the displayed frame (after display grading). This is a pure client-side layer — no Shimmer dependency is bundled in the LumaVision JAR.
+
+**Production:** install both `lumavision-*.jar` and `Shimmer-forge-*.jar` in your `mods` folder.
+
+**Development (Gradle / userdev):** do **not** copy the Shimmer JAR into `run/mods` (mapping mismatch → crash at startup). Instead:
+
+1. Copy `Shimmer-forge-1.20.1-0.2.4.jar` into the project `libs/` folder (see `libs/README.txt`).
+2. Run `gradlew runClient` — Gradle loads it via `fg.deobf` with mixin refmap remapping.
+
+The JAR in `libs/` is gitignored; each developer must add it locally.
+
+```toml
+# config/lumavision-common.toml
+enableShimmerAmbilight = true       # no-op if Shimmer is absent
+shimmerSampleSize = 16              # 4–32, average-color grid
+shimmerMaxUpdatesPerSecond = 30     # 5–60, per wall
+shimmerLightRadius = 1.5            # multiplier on max(grid width, height)
+shimmerLightOffset = 0.3            # blocks in front of the screen face
+```
+
+Set `enableShimmerAmbilight = false` to disable ambilight without uninstalling Shimmer.
+
 ---
 
 ## 🛠️ Development
@@ -285,6 +309,11 @@ lumavison-mod/
     │   │   ├── texture/
     │   │   │   ├── DynamicTextureHandle.java
     │   │   │   └── ScreenTextureManager.java
+    │   │   ├── shimmer/                    # Optional Shimmer ambilight (reflection)
+    │   │   │   ├── ShimmerBridge.java
+    │   │   │   ├── FrameAverageSampler.java
+    │   │   │   ├── WallLightPlacement.java
+    │   │   │   └── LedAmbilightController.java
     │   │   └── render/
     │   │       └── ScreenRenderer.java
     │   │
@@ -328,6 +357,11 @@ config/lumavision-common.toml
 | `ndiAutoSelectFirst` | `false` | Use first discovered NDI source when nothing else is set |
 | `ndiReceiveTimeoutMs` | `5` | NDI frame receive timeout (ms) |
 | `ndiDiscoveryIntervalMs` | `2000` | NDI network scan interval (ms) |
+| `enableShimmerAmbilight` | `true` | Dynamic Shimmer lights from screen content (client; no-op without Shimmer) |
+| `shimmerSampleSize` | `16` | Grid size for ambilight color sampling (4–32) |
+| `shimmerMaxUpdatesPerSecond` | `30` | Max Shimmer light updates per second per wall (5–60) |
+| `shimmerLightRadius` | `1.5` | Light radius multiplier based on wall size |
+| `shimmerLightOffset` | `0.3` | Distance in blocks in front of the screen for the light |
 
 ---
 
