@@ -3,7 +3,7 @@ package fr.lumavision.video;
 /**
  * Creates {@link VideoSource} instances from descriptors.
  * <p>
- * Client implementations live in {@code fr.lumavision.client.video}.
+ * Client implementations are aggregated by {@link fr.lumavision.video.provider.VideoSourceCatalog}.
  */
 public interface VideoSourceFactory {
 

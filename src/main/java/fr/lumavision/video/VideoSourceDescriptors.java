@@ -5,15 +5,24 @@ package fr.lumavision.video;
  */
 public final class VideoSourceDescriptors {
 
+    private static final String[] PREFIXES = {
+            VideoSourceDescriptor.NDI_PREFIX,
+            VideoSourceDescriptor.FILE_PREFIX,
+            VideoSourceDescriptor.GIF_PREFIX,
+            VideoSourceDescriptor.IMAGE_PREFIX,
+            VideoSourceDescriptor.BROWSER_PREFIX,
+            VideoSourceDescriptor.WEBCAM_PREFIX,
+            VideoSourceDescriptor.NETWORK_PREFIX,
+            VideoSourceDescriptor.SPOUT_PREFIX,
+            VideoSourceDescriptor.SYPHON_PREFIX,
+            VideoSourceDescriptor.SCREEN_CAPTURE_PREFIX
+    };
+
     private VideoSourceDescriptors() {
     }
 
     /**
-     * Parses a stored source id.
-     * <ul>
-     *   <li>{@code ndi:MACHINE (Source)} → NDI descriptor</li>
-     *   <li>{@code test} or empty → test pattern</li>
-     * </ul>
+     * Parses a stored source id into a {@link VideoSourceDescriptor}.
      */
     public static VideoSourceDescriptor parse(String sourceId) {
         if (sourceId == null || sourceId.isBlank()) {
@@ -25,10 +34,12 @@ public final class VideoSourceDescriptors {
             return VideoSourceDescriptor.testPattern();
         }
 
-        if (trimmed.regionMatches(true, 0, VideoSourceDescriptor.NDI_PREFIX, 0, VideoSourceDescriptor.NDI_PREFIX.length())) {
-            String name = trimmed.substring(VideoSourceDescriptor.NDI_PREFIX.length()).trim();
-            if (!name.isEmpty()) {
-                return VideoSourceDescriptor.ndi(name);
+        for (String prefix : PREFIXES) {
+            if (trimmed.regionMatches(true, 0, prefix, 0, prefix.length())) {
+                String payload = trimmed.substring(prefix.length()).trim();
+                if (!payload.isEmpty()) {
+                    return descriptorForPrefix(prefix, payload);
+                }
             }
         }
 
@@ -37,5 +48,39 @@ public final class VideoSourceDescriptors {
 
     public static boolean hasExplicitSource(String sourceId) {
         return sourceId != null && !sourceId.isBlank();
+    }
+
+    private static VideoSourceDescriptor descriptorForPrefix(String prefix, String payload) {
+        if (prefix.equalsIgnoreCase(VideoSourceDescriptor.NDI_PREFIX)) {
+            return VideoSourceDescriptor.ndi(payload);
+        }
+        if (prefix.equalsIgnoreCase(VideoSourceDescriptor.FILE_PREFIX)) {
+            return VideoSourceDescriptor.file(payload);
+        }
+        if (prefix.equalsIgnoreCase(VideoSourceDescriptor.GIF_PREFIX)) {
+            return VideoSourceDescriptor.gif(payload);
+        }
+        if (prefix.equalsIgnoreCase(VideoSourceDescriptor.IMAGE_PREFIX)) {
+            return VideoSourceDescriptor.image(payload);
+        }
+        if (prefix.equalsIgnoreCase(VideoSourceDescriptor.BROWSER_PREFIX)) {
+            return VideoSourceDescriptor.browser(payload);
+        }
+        if (prefix.equalsIgnoreCase(VideoSourceDescriptor.WEBCAM_PREFIX)) {
+            return VideoSourceDescriptor.webcam(payload);
+        }
+        if (prefix.equalsIgnoreCase(VideoSourceDescriptor.NETWORK_PREFIX)) {
+            return VideoSourceDescriptor.network(payload);
+        }
+        if (prefix.equalsIgnoreCase(VideoSourceDescriptor.SPOUT_PREFIX)) {
+            return VideoSourceDescriptor.spout(payload);
+        }
+        if (prefix.equalsIgnoreCase(VideoSourceDescriptor.SYPHON_PREFIX)) {
+            return VideoSourceDescriptor.syphon(payload);
+        }
+        if (prefix.equalsIgnoreCase(VideoSourceDescriptor.SCREEN_CAPTURE_PREFIX)) {
+            return VideoSourceDescriptor.screenCapture(payload);
+        }
+        return VideoSourceDescriptor.testPattern();
     }
 }
