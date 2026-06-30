@@ -42,6 +42,26 @@ public final class ModConfig {
             .comment("How often to refresh the list of NDI sources on the network.")
             .defineInRange("ndiDiscoveryIntervalMs", 2000, 250, 60000);
 
+    public static final ForgeConfigSpec.BooleanValue ENABLE_SHIMMER_AMBILIGHT = BUILDER
+            .comment("Emit dynamic Shimmer lights from LED screen content when the Shimmer mod is installed.")
+            .define("enableShimmerAmbilight", true);
+
+    public static final ForgeConfigSpec.IntValue SHIMMER_SAMPLE_SIZE = BUILDER
+            .comment("Grid size for average color sampling (e.g. 16 = 16x16 samples).")
+            .defineInRange("shimmerSampleSize", 16, 4, 32);
+
+    public static final ForgeConfigSpec.IntValue SHIMMER_MAX_UPDATES_PER_SECOND = BUILDER
+            .comment("Maximum Shimmer light color updates per second per wall.")
+            .defineInRange("shimmerMaxUpdatesPerSecond", 30, 5, 60);
+
+    public static final ForgeConfigSpec.DoubleValue SHIMMER_LIGHT_RADIUS = BUILDER
+            .comment("Light radius multiplier based on wall size (max grid dimension).")
+            .defineInRange("shimmerLightRadius", 1.5, 0.5, 8.0);
+
+    public static final ForgeConfigSpec.DoubleValue SHIMMER_LIGHT_OFFSET = BUILDER
+            .comment("Distance in blocks in front of the screen face to place the light.")
+            .defineInRange("shimmerLightOffset", 0.3, 0.0, 2.0);
+
     public static final ForgeConfigSpec SPEC = BUILDER.build();
 
     private ModConfig() {
