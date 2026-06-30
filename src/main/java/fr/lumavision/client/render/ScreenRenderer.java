@@ -2,11 +2,11 @@ package fr.lumavision.client.render;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
-import com.mojang.math.Axis;
 import fr.lumavision.LumaVisionMod;
 import fr.lumavision.block.LedScreenBlock;
 import fr.lumavision.blockentity.LedScreenBlockEntity;
 import fr.lumavision.client.texture.ScreenTextureManager;
+import fr.lumavision.screen.ScreenGroupMembership;
 import net.minecraft.client.renderer.LightTexture;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
@@ -39,12 +39,13 @@ public final class ScreenRenderer implements BlockEntityRenderer<LedScreenBlockE
                        MultiBufferSource bufferSource, int packedLight, int packedOverlay) {
         BlockState state = blockEntity.getBlockState();
         Direction facing = state.getValue(LedScreenBlock.FACING);
+        ScreenGroupMembership group = blockEntity.getGroupMembership();
         ResourceLocation screenTexture = ScreenTextureManager.getInstance().getTexture(blockEntity);
 
         int light = LightTexture.FULL_BRIGHT;
 
         renderFrame(poseStack, bufferSource, facing, light, packedOverlay);
-        renderDisplayQuad(poseStack, bufferSource, facing, screenTexture, light, packedOverlay);
+        renderDisplayQuad(poseStack, bufferSource, facing, screenTexture, group, light, packedOverlay);
     }
 
     private static void renderFrame(PoseStack poseStack, MultiBufferSource bufferSource, Direction facing,
@@ -55,11 +56,12 @@ public final class ScreenRenderer implements BlockEntityRenderer<LedScreenBlockE
     }
 
     private static void renderDisplayQuad(PoseStack poseStack, MultiBufferSource bufferSource, Direction facing,
-                                          ResourceLocation texture, int light, int overlay) {
+                                          ResourceLocation texture, ScreenGroupMembership group,
+                                          int light, int overlay) {
         VertexConsumer consumer = bufferSource.getBuffer(RenderType.entityCutoutNoCull(texture));
         drawFacingQuad(consumer, poseStack.last(), facing,
                 INSET, INSET, 1.0F - INSET, 1.0F - INSET, FACE_EPSILON * 2.0F,
-                0.0F, 0.0F, 1.0F, 1.0F, light, overlay);
+                group.uvMinU(), group.uvMinV(), group.uvMaxU(), group.uvMaxV(), light, overlay);
     }
 
   /**

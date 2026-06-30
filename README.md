@@ -38,6 +38,7 @@ The mod is built for long-term growth: a clean rendering pipeline, extensible co
 | Area | Status | Description |
 |------|--------|-------------|
 | 🧱 **LED Screen block** | ✅ | Wall-mounted panel with 6-axis orientation |
+| 🧩 **Merged screen walls** | ✅ | Adjacent panels form one logical display with shared texture |
 | 🖥️ **Dynamic rendering** | ✅ | Animated test pattern (checkerboard + gradient) |
 | 🏗️ **Video pipeline** | ✅ | `VideoSource` → `VideoFrame` → `DynamicTexture` → `ScreenRenderer` |
 | 📦 **Registries** | ✅ | Blocks, items, block entities, creative tab |
@@ -48,7 +49,6 @@ The mod is built for long-term growth: a clean rendering pipeline, extensible co
 
 - 🎬 Video / image file playback
 - 📡 NDI input (Devolay or equivalent)
-- 🧩 Merged screen walls (multi-block logical displays)
 - 🔄 Multiplayer content synchronization
 - ⚡ Advanced rendering optimizations
 
@@ -59,8 +59,8 @@ The mod is built for long-term growth: a clean rendering pipeline, extensible co
 | Phase | Focus | Status |
 |:-----:|-------|:------:|
 | **1** | Single LED screen block + dynamic texture pipeline | 🟢 Done |
-| **2** | Merged screen walls (several blocks → one logical display) | 🟡 Planned |
-| **3** | Static images & video file playback | ⚪ Planned |
+| **2** | Merged screen walls (several blocks → one logical display) | 🟢 Done |
+| **3** | Static images & video file playback | 🟡 Next |
 | **4** | NDI / live stream support | ⚪ Planned |
 | **5** | Network synchronization (server ↔ clients) | ⚪ Planned |
 | **6** | Rendering & memory optimizations | ⚪ Planned |
