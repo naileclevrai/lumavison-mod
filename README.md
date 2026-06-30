@@ -39,7 +39,8 @@ The mod is built for long-term growth: a clean rendering pipeline, extensible co
 |------|--------|-------------|
 | 🧱 **LED Screen block** | ✅ | Wall-mounted panel with 6-axis orientation |
 | 🧩 **Merged screen walls** | ✅ | Adjacent panels form one logical display with shared texture |
-| 🖥️ **Dynamic rendering** | ✅ | Animated test pattern (checkerboard + gradient) |
+| 📡 **NDI input (Devolay)** | ✅ | Network source discovery + live frame capture (client) |
+| 🖥️ **Dynamic rendering** | ✅ | Test pattern fallback + NDI live video |
 | 🏗️ **Video pipeline** | ✅ | `VideoSource` → `VideoFrame` → `DynamicTexture` → `ScreenRenderer` |
 | 📦 **Registries** | ✅ | Blocks, items, block entities, creative tab |
 | ⚙️ **Configuration** | ✅ | Common config via `lumavision-common.toml` |
@@ -48,7 +49,6 @@ The mod is built for long-term growth: a clean rendering pipeline, extensible co
 ### Not yet available
 
 - 🎬 Video / image file playback
-- 📡 NDI input (Devolay or equivalent)
 - 🔄 Multiplayer content synchronization
 - ⚡ Advanced rendering optimizations
 
@@ -61,7 +61,7 @@ The mod is built for long-term growth: a clean rendering pipeline, extensible co
 | **1** | Single LED screen block + dynamic texture pipeline | 🟢 Done |
 | **2** | Merged screen walls (several blocks → one logical display) | 🟢 Done |
 | **3** | Static images & video file playback | 🟡 Next |
-| **4** | NDI / live stream support | ⚪ Planned |
+| **4** | NDI / live stream support | 🟢 Done (v1) |
 | **5** | Network synchronization (server ↔ clients) | ⚪ Planned |
 | **6** | Rendering & memory optimizations | ⚪ Planned |
 
@@ -77,7 +77,7 @@ LumaVision is designed around a **source-agnostic** renderer. Future `VideoSourc
 | 🎞️ **Dynamic textures** | GPU-backed frames updated every tick |
 | 🎬 **Video playback** | Local files (MP4, etc.) via a dedicated source implementation |
 | 🖼️ **Static images** | PNG / JPEG as screen content |
-| 📡 **NDI** | Live professional video input through [Devolay](https://github.com/open-dpp/devolay-java) or similar |
+| 📡 **NDI** | Live professional video via [Devolay](https://github.com/WalkerKnapp/devolay) (bundled natives) |
 | 🌐 **Network sync** | Consistent screen state across multiplayer sessions |
 | ⚡ **Performance** | Texture pooling, resolution scaling, culling & batching |
 
@@ -108,7 +108,24 @@ LumaVision is designed around a **source-agnostic** renderer. Future `VideoSourc
 
 ### In-game
 
-Open the **LumaVision** creative tab and place an **LED Screen** on any block face. The panel displays an animated test pattern to validate the rendering pipeline.
+Open the **LumaVision** creative tab and place **LED Screen** blocks. By default, walls show a test pattern. Enable NDI in config to display live network video (see below).
+
+### NDI setup
+
+1. Install an NDI sender on your LAN (OBS NDI, vMix, NDI Tools, etc.).
+2. Edit `config/lumavision-common.toml` after first launch:
+
+```toml
+enableNdi = true
+ndiDefaultSource = "YOUR-PC (OBS)"   # exact name from discovery logs
+debugLogging = true                  # lists discovered sources in the log
+```
+
+3. **Per-wall override (optional):** set the origin block's `sourceId` to `ndi:YOUR-PC (OBS)` via NBT or a future config tool.
+
+**Source resolution order:** wall `sourceId` → `ndiDefaultSource` → first discovered source (if `ndiAutoSelectFirst = true`) → test pattern.
+
+> NDI usage is subject to the [NDI SDK license terms](https://ndi.video). Devolay is Apache 2.0; native libraries are bundled via the `integrated` Maven artifact.
 
 ---
 
@@ -168,10 +185,11 @@ The renderer is intentionally **decoupled** from content producers. Adding NDI, 
 └─────────────┘    └─────────────┘    └─────────────────────┘    └────────────────┘
        ▲                                                                    │
        │                                                                    ▼
-  Test pattern                                                     LED Screen block
-  Video file (future)                                              (BlockEntityRenderer)
-  NDI stream (future)
-  Static image (future)
+  Test pattern (fallback)
+  NDI via Devolay
+  Video file (future)
+  Static image (future)                                            LED Screen block
+                                                                   (BlockEntityRenderer)
 ```
 
 | Layer | Package | Role |
@@ -179,7 +197,10 @@ The renderer is intentionally **decoupled** from content producers. Adding NDI, 
 | `VideoSource` | `fr.lumavision.video` | Produces frames from any media backend |
 | `VideoFrame` | `fr.lumavision.video` | ARGB pixel buffer for a single frame |
 | `DynamicTextureHandle` | `fr.lumavision.client.texture` | Uploads frames to a Minecraft `DynamicTexture` |
-| `ScreenTextureManager` | `fr.lumavision.client.texture` | Per-screen pipeline lifecycle (tick, cleanup) |
+| `ClientVideoSourceFactory` | `fr.lumavision.client.video` | Creates `VideoSource` from descriptors |
+| `NdiDiscoveryService` | `fr.lumavision.client.ndi` | Background NDI source finder |
+| `NdiVideoSource` | `fr.lumavision.client.ndi` | Devolay receiver → `VideoFrame` |
+| `ScreenTextureManager` | `fr.lumavision.client.texture` | One pipeline per merged wall (tick, cleanup) |
 | `ScreenRenderer` | `fr.lumavision.client.render` | Draws the bezel + display quad in world space |
 
 ### Project layout
@@ -204,13 +225,18 @@ lumavison-mod/
     │   │
     │   ├── video/                          # Loader-agnostic video abstractions
     │   │   ├── VideoSource.java
-    │   │   ├── VideoFrame.java
-    │   │   └── StubVideoSource.java
+    │   │   ├── VideoSourceDescriptor.java
+    │   │   ├── VideoSourceFactory.java
+    │   │   └── VideoFrame.java
     │   │
     │   ├── client/
-    │   │   ├── LumaVisionClientMod.java    # BER registration
-    │   │   ├── LumaVisionClientForgeEvents.java
+    │   │   ├── LumaVisionClientMod.java
+    │   │   ├── ndi/
+    │   │   │   ├── NdiDiscoveryService.java
+    │   │   │   ├── NdiVideoSource.java
+    │   │   │   └── NdiSourceResolver.java
     │   │   ├── video/
+    │   │   │   ├── ClientVideoSourceFactory.java
     │   │   │   └── TestPatternVideoSource.java
     │   │   ├── texture/
     │   │   │   ├── DynamicTextureHandle.java
@@ -249,9 +275,13 @@ config/lumavision-common.toml
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| `debugLogging` | `false` | Verbose logs for textures, networking, rendering |
+| `debugLogging` | `false` | Verbose logs (textures, NDI discovery, rendering) |
 | `maxTextureResolution` | `1024` | Max longest side for dynamic screen textures (64–4096) |
-| `enableNdi` | `false` | Reserved for future NDI support |
+| `enableNdi` | `false` | Enable NDI input on the client |
+| `ndiDefaultSource` | `""` | Global fallback NDI source name |
+| `ndiAutoSelectFirst` | `false` | Use first discovered NDI source when nothing else is set |
+| `ndiReceiveTimeoutMs` | `5` | NDI frame receive timeout (ms) |
+| `ndiDiscoveryIntervalMs` | `2000` | NDI network scan interval (ms) |
 
 ---
 
@@ -295,7 +325,8 @@ You are free to use, modify, and distribute this software with minimal restricti
 | **Author** | [Nailec](https://github.com/naileclevrai) |
 | **Project** | [lumavison-mod](https://github.com/naileclevrai/lumavison-mod) |
 | **Platform** | [Minecraft Forge](https://minecraftforge.net/) |
-| **Inspiration** | Stage & concert setups in Minecraft — built for creators who need real display workflows |
+| **Inspiration** | Stage & concert setups in Minecraft |
+| **NDI** | [Devolay](https://github.com/WalkerKnapp/devolay) by Walker Knapp |
 
 ---
 
