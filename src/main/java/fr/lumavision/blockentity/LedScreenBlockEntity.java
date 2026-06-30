@@ -2,6 +2,8 @@ package fr.lumavision.blockentity;
 
 import fr.lumavision.registry.ModBlockEntities;
 import fr.lumavision.screen.ScreenGroupMembership;
+import fr.lumavision.video.VideoSourceDescriptor;
+import fr.lumavision.video.VideoSourceDescriptors;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
@@ -49,6 +51,17 @@ public class LedScreenBlockEntity extends BlockEntity {
     public void setSourceId(String sourceId) {
         this.sourceId = sourceId == null ? "" : sourceId;
         setChanged();
+    }
+
+    /**
+     * Parsed media binding for this block. Only the group origin's source drives a merged wall.
+     */
+    public VideoSourceDescriptor getSourceDescriptor() {
+        return VideoSourceDescriptors.parse(sourceId);
+    }
+
+    public boolean hasExplicitSourceId() {
+        return VideoSourceDescriptors.hasExplicitSource(sourceId);
     }
 
     @Override
