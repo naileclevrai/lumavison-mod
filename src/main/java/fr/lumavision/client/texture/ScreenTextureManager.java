@@ -1,11 +1,13 @@
 package fr.lumavision.client.texture;
 
 import fr.lumavision.blockentity.LedScreenBlockEntity;
-import fr.lumavision.client.video.TestPatternVideoSource;
+import fr.lumavision.client.ndi.NdiSourceResolver;
+import fr.lumavision.client.video.ClientVideoSourceFactory;
 import fr.lumavision.config.ModConfig;
 import fr.lumavision.screen.ScreenGroupMembership;
 import fr.lumavision.video.VideoFrame;
 import fr.lumavision.video.VideoSource;
+import fr.lumavision.video.VideoSourceDescriptor;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.Level;
@@ -19,8 +21,6 @@ import java.util.Map;
 
 /**
  * One {@link VideoSource} pipeline per merged screen group (wall).
- * <p>
- * Individual blocks sample the same dynamic texture with per-cell UV offsets.
  */
 @OnlyIn(Dist.CLIENT)
 public final class ScreenTextureManager {
@@ -39,7 +39,11 @@ public final class ScreenTextureManager {
     }
 
     public ResourceLocation getTexture(LedScreenBlockEntity blockEntity) {
-        return pipelineFor(blockEntity.getGroupMembership()).texture().location();
+        Level level = blockEntity.getLevel();
+        if (level == null) {
+            throw new IllegalStateException("Cannot resolve screen texture without a level");
+        }
+        return pipelineFor(level, blockEntity).texture().location();
     }
 
     public void tick(Level level) {
@@ -56,26 +60,37 @@ public final class ScreenTextureManager {
         pipelines.clear();
     }
 
-    private ScreenPipeline pipelineFor(ScreenGroupMembership membership) {
+    private ScreenPipeline pipelineFor(Level level, LedScreenBlockEntity blockEntity) {
+        ScreenGroupMembership membership = blockEntity.getGroupMembership();
         long key = membership.groupKey();
+        VideoSourceDescriptor descriptor = resolveDescriptor(level, membership);
+
         ScreenPipeline existing = pipelines.get(key);
-        if (existing != null && existing.matches(membership)) {
+        if (existing != null && existing.matches(membership, descriptor)) {
             return existing;
         }
         if (existing != null) {
             existing.close();
         }
 
-        ScreenPipeline pipeline = createPipeline(membership);
+        ScreenPipeline pipeline = createPipeline(membership, descriptor);
         pipelines.put(key, pipeline);
         return pipeline;
     }
 
-    private static ScreenPipeline createPipeline(ScreenGroupMembership membership) {
+    private static VideoSourceDescriptor resolveDescriptor(Level level, ScreenGroupMembership membership) {
+        BlockEntity blockEntity = level.getBlockEntity(membership.groupOrigin());
+        if (blockEntity instanceof LedScreenBlockEntity origin) {
+            return NdiSourceResolver.resolve(origin);
+        }
+        return VideoSourceDescriptor.testPattern();
+    }
+
+    private static ScreenPipeline createPipeline(ScreenGroupMembership membership, VideoSourceDescriptor descriptor) {
         int[] size = computeTextureSize(membership.gridWidth(), membership.gridHeight());
-        VideoSource source = new TestPatternVideoSource(size[0], size[1]);
+        VideoSource source = ClientVideoSourceFactory.INSTANCE.create(descriptor, size[0], size[1]);
         DynamicTextureHandle texture = new DynamicTextureHandle("group_" + membership.groupKey());
-        ScreenPipeline pipeline = new ScreenPipeline(membership, source, texture);
+        ScreenPipeline pipeline = new ScreenPipeline(membership, descriptor, source, texture);
         pipeline.tick();
         return pipeline;
     }
@@ -109,7 +124,8 @@ public final class ScreenTextureManager {
             }
 
             ScreenGroupMembership membership = led.getGroupMembership();
-            if (!membership.groupOrigin().equals(origin) || !entry.getValue().matches(membership)) {
+            VideoSourceDescriptor descriptor = resolveDescriptor(level, membership);
+            if (!membership.groupOrigin().equals(origin) || !entry.getValue().matches(membership, descriptor)) {
                 entry.getValue().close();
                 iterator.remove();
             }
@@ -118,19 +134,23 @@ public final class ScreenTextureManager {
 
     private static final class ScreenPipeline implements AutoCloseable {
         private final ScreenGroupMembership membership;
+        private final VideoSourceDescriptor descriptor;
         private final VideoSource source;
         private final DynamicTextureHandle texture;
 
-        private ScreenPipeline(ScreenGroupMembership membership, VideoSource source, DynamicTextureHandle texture) {
+        private ScreenPipeline(ScreenGroupMembership membership, VideoSourceDescriptor descriptor,
+                               VideoSource source, DynamicTextureHandle texture) {
             this.membership = membership;
+            this.descriptor = descriptor;
             this.source = source;
             this.texture = texture;
         }
 
-        private boolean matches(ScreenGroupMembership other) {
+        private boolean matches(ScreenGroupMembership other, VideoSourceDescriptor otherDescriptor) {
             return membership.gridWidth() == other.gridWidth()
                     && membership.gridHeight() == other.gridHeight()
-                    && membership.groupOrigin().equals(other.groupOrigin());
+                    && membership.groupOrigin().equals(other.groupOrigin())
+                    && descriptor.cacheKey().equals(otherDescriptor.cacheKey());
         }
 
         private DynamicTextureHandle texture() {
@@ -139,7 +159,8 @@ public final class ScreenTextureManager {
 
         private void tick() {
             source.tick();
-            texture.upload(source.getCurrentFrame());
+            VideoFrame frame = source.getCurrentFrame();
+            texture.upload(frame);
         }
 
         @Override
