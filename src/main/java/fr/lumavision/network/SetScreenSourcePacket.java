@@ -2,6 +2,7 @@ package fr.lumavision.network;
 
 import fr.lumavision.LumaVisionMod;
 import fr.lumavision.blockentity.LedScreenBlockEntity;
+import fr.lumavision.screen.ScreenWallPermissions;
 import fr.lumavision.video.VideoSourceDescriptors;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.FriendlyByteBuf;
@@ -50,6 +51,11 @@ public record SetScreenSourcePacket(BlockPos groupOrigin, String sourceId) {
         }
 
         if (player.distanceToSqr(origin.getX() + 0.5D, origin.getY() + 0.5D, origin.getZ() + 0.5D) > 64.0D) {
+            return;
+        }
+
+        if (!ScreenWallPermissions.canConfigure(player, origin)) {
+            LumaVisionMod.LOGGER.debug("Rejected source update from non-owner {}", player.getGameProfile().getName());
             return;
         }
 

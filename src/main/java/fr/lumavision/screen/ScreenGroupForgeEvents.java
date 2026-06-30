@@ -5,10 +5,12 @@ import fr.lumavision.blockentity.LedScreenBlockEntity;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraftforge.event.TickEvent;
+import net.minecraftforge.event.level.BlockEvent;
 import net.minecraftforge.event.level.ChunkEvent;
 import net.minecraftforge.event.server.ServerStoppingEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
@@ -30,6 +32,20 @@ public final class ScreenGroupForgeEvents {
     private static final Set<RebuildRequest> PENDING_REBUILDS = ConcurrentHashMap.newKeySet();
 
     private ScreenGroupForgeEvents() {
+    }
+
+    @SubscribeEvent
+    public static void onBlockPlace(BlockEvent.EntityPlaceEvent event) {
+        if (event.getLevel().isClientSide()) {
+            return;
+        }
+        if (!(event.getEntity() instanceof Player player)) {
+            return;
+        }
+        if (!(event.getLevel().getBlockEntity(event.getPos()) instanceof LedScreenBlockEntity screen)) {
+            return;
+        }
+        screen.claimOwnership(player.getUUID());
     }
 
     @SubscribeEvent
