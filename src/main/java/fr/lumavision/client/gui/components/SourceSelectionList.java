@@ -1,26 +1,36 @@
-package fr.lumavision.client.gui;
+package fr.lumavision.client.gui.components;
 
+import fr.lumavision.client.gui.ScreenConfigScreen;
 import fr.lumavision.video.provider.CatalogSourceEntry;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.ObjectSelectionList;
 import net.minecraft.network.chat.Component;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.api.distmarker.OnlyIn;
 
 import java.util.Objects;
 
 /**
- * Scrollable single-select list of catalog sources for {@link ScreenConfigScreen}.
+ * Scrollable single-select list of catalog sources.
  */
-final class SourceSelectionList extends ObjectSelectionList<SourceSelectionList.Entry> {
+@OnlyIn(Dist.CLIENT)
+public final class SourceSelectionList extends ObjectSelectionList<SourceSelectionList.Entry> {
 
     private final ScreenConfigScreen screen;
 
-    SourceSelectionList(ScreenConfigScreen screen, Minecraft minecraft, int width, int top, int height) {
-        super(minecraft, width, height, top, top + height, 20);
+    public SourceSelectionList(
+            ScreenConfigScreen screen,
+            Minecraft minecraft,
+            int width,
+            int listTop,
+            int listBottom
+    ) {
+        super(minecraft, width, listBottom - listTop, listTop, listBottom, 22);
         this.screen = screen;
     }
 
-    void setSources(Iterable<CatalogSourceEntry> sources, CatalogSourceEntry selected) {
+    public void setSources(Iterable<CatalogSourceEntry> sources, CatalogSourceEntry selected) {
         clearEntries();
         for (CatalogSourceEntry source : sources) {
             addEntry(new Entry(source));
@@ -36,17 +46,22 @@ final class SourceSelectionList extends ObjectSelectionList<SourceSelectionList.
         }
     }
 
-    CatalogSourceEntry getSelectedSource() {
+    public CatalogSourceEntry getSelectedSource() {
         Entry entry = getSelected();
         return entry == null ? null : entry.source;
     }
 
     @Override
     public int getRowWidth() {
-        return width - 12;
+        return width - 8;
     }
 
-    final class Entry extends ObjectSelectionList.Entry<Entry> {
+    @Override
+    protected int getScrollbarPosition() {
+        return getLeft() + width - 6;
+    }
+
+    public final class Entry extends ObjectSelectionList.Entry<Entry> {
 
         private final CatalogSourceEntry source;
 
@@ -73,16 +88,35 @@ final class SourceSelectionList extends ObjectSelectionList<SourceSelectionList.
                 float partialTick
         ) {
             boolean selected = screen.isSourceSelected(source);
-            String marker = selected ? "● " : "○ ";
-            int color = source.selectable() ? 0xFFFFFF : 0x808080;
+            boolean selectable = source.selectable();
+
+            if (selected) {
+                graphics.fill(left, top, left + entryWidth, top + entryHeight, GuiTheme.SELECTION_BG);
+                GuiTheme.drawSelectionBar(graphics, left, top, entryHeight);
+            } else if (hovered && selectable) {
+                graphics.fill(left, top, left + entryWidth, top + entryHeight, GuiTheme.ROW_HOVER);
+            }
+
+            int nameColor = selectable ? GuiTheme.TEXT_PRIMARY : GuiTheme.TEXT_MUTED;
             graphics.drawString(
                     Minecraft.getInstance().font,
-                    marker + source.displayName(),
-                    left + 4,
-                    top + 6,
-                    color,
+                    source.displayName(),
+                    left + 10,
+                    top + 4,
+                    nameColor,
                     false
             );
+
+            if (!source.detail().isBlank()) {
+                graphics.drawString(
+                        Minecraft.getInstance().font,
+                        source.detail(),
+                        left + 10,
+                        top + 13,
+                        GuiTheme.TEXT_SECONDARY,
+                        false
+                );
+            }
         }
 
         @Override

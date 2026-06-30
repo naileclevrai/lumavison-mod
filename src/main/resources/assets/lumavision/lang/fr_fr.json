@@ -1,0 +1,22 @@
+{
+  "itemGroup.lumavision": "LumaVision",
+  "block.lumavision.led_screen": "Écran LED",
+  "item.lumavision.led_screen": "Écran LED",
+  "menu.lumavision.screen_config": "Configuration écran LED",
+  "gui.lumavision.screen_config.provider": "PROVIDERS",
+  "gui.lumavision.screen_config.sources": "SOURCES",
+  "gui.lumavision.screen_config.refresh": "Actualiser",
+  "gui.lumavision.screen_config.apply": "Appliquer",
+  "gui.lumavision.screen_config.cancel": "Annuler",
+  "gui.lumavision.screen_config.merged_wall": "Mur fusionné %sx%s",
+  "gui.lumavision.screen_config.provider_unavailable": "Provider indisponible",
+  "gui.lumavision.screen_config.provider_disabled": "Activez NDI dans lumavision-common.toml",
+  "gui.lumavision.screen_config.no_sources": "Aucune source — cliquez Actualiser",
+  "gui.lumavision.screen_config.coming_soon": "bientôt",
+  "gui.lumavision.screen_config.disabled": "désactivé",
+  "gui.lumavision.screen_config.unavailable": "indisponible",
+  "gui.lumavision.screen_config.badge_live": "● Actif",
+  "gui.lumavision.screen_config.badge_soon": "○ Bientôt",
+  "gui.lumavision.screen_config.badge_disabled": "○ Désactivé",
+  "gui.lumavision.screen_config.badge_unavailable": "○ Indisponible"
+}
