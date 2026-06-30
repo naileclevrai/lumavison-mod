@@ -1,8 +1,10 @@
 package fr.lumavision.client.texture;
 
 import fr.lumavision.blockentity.LedScreenBlockEntity;
+import fr.lumavision.client.display.DisplayColorGrading;
 import fr.lumavision.client.video.catalog.ClientVideoSourceCatalog;
 import fr.lumavision.config.ModConfig;
+import fr.lumavision.screen.ScreenDisplaySettings;
 import fr.lumavision.screen.ScreenGroupMembership;
 import fr.lumavision.video.VideoFrame;
 import fr.lumavision.video.VideoSource;
@@ -24,11 +26,13 @@ import java.util.Set;
  * One {@link VideoSource} pipeline per merged screen group (wall).
  * <p>
  * GPU uploads happen only during the client tick — never from block entity rendering.
+ * Color grading runs in the display layer after {@link VideoSource#getCurrentFrame()}.
  */
 @OnlyIn(Dist.CLIENT)
 public final class ScreenTextureManager {
 
     private static final int BASE_CELL_RESOLUTION = 128;
+    private static final int[] FALLBACK_FRAME_SIZE = {16, 16};
 
     private static final ScreenTextureManager INSTANCE = new ScreenTextureManager();
 
@@ -43,10 +47,6 @@ public final class ScreenTextureManager {
         return INSTANCE;
     }
 
-    /**
-     * Returns the current GPU texture for a wall. Does not upload or create pipelines —
-     * that work is deferred to {@link #tick(Level)}.
-     */
     public ResourceLocation getTexture(LedScreenBlockEntity blockEntity) {
         ScreenGroupMembership membership = blockEntity.getGroupMembership();
         ScreenPipeline pipeline = pipelines.get(membership.groupKey());
@@ -58,11 +58,16 @@ public final class ScreenTextureManager {
         return fallbackTexture().location();
     }
 
+    public int[] getFrameSize(long groupKey) {
+        ScreenPipeline pipeline = pipelines.get(groupKey);
+        return pipeline == null ? FALLBACK_FRAME_SIZE : pipeline.frameSize();
+    }
+
     public void tick(Level level) {
         processPendingPipelines(level);
         pruneInvalid(level);
         for (ScreenPipeline pipeline : pipelines.values()) {
-            pipeline.tick();
+            pipeline.tick(level);
         }
     }
 
@@ -97,9 +102,10 @@ public final class ScreenTextureManager {
     private void ensurePipeline(Level level, ScreenGroupMembership membership) {
         long key = membership.groupKey();
         VideoSourceDescriptor descriptor = resolveDescriptor(level, membership);
+        ScreenDisplaySettings displaySettings = LedScreenBlockEntity.resolveDisplaySettings(level, membership);
 
         ScreenPipeline existing = pipelines.get(key);
-        if (existing != null && existing.matches(membership, descriptor)) {
+        if (existing != null && existing.matches(membership, descriptor, displaySettings)) {
             return;
         }
         if (existing != null) {
@@ -108,7 +114,7 @@ public final class ScreenTextureManager {
 
         ScreenPipeline pipeline = createPipeline(membership, descriptor);
         pipelines.put(key, pipeline);
-        pipeline.tick();
+        pipeline.tick(level);
     }
 
     private static VideoSourceDescriptor resolveDescriptor(Level level, ScreenGroupMembership membership) {
@@ -163,7 +169,8 @@ public final class ScreenTextureManager {
 
             ScreenGroupMembership membership = led.getGroupMembership();
             VideoSourceDescriptor descriptor = resolveDescriptor(level, membership);
-            if (!membership.groupOrigin().equals(origin) || !entry.getValue().matches(membership, descriptor)) {
+            ScreenDisplaySettings displaySettings = LedScreenBlockEntity.resolveDisplaySettings(level, membership);
+            if (!membership.groupOrigin().equals(origin) || !entry.getValue().matches(membership, descriptor, displaySettings)) {
                 entry.getValue().close();
                 iterator.remove();
             }
@@ -175,6 +182,11 @@ public final class ScreenTextureManager {
         private final VideoSourceDescriptor descriptor;
         private final VideoSource source;
         private final DynamicTextureHandle texture;
+        private VideoFrame gradedFrame;
+
+        private int lastFrameWidth;
+        private int lastFrameHeight;
+        private String displayCacheKey = ScreenDisplaySettings.DEFAULT.cacheKey();
 
         private ScreenPipeline(ScreenGroupMembership membership, VideoSourceDescriptor descriptor,
                                VideoSource source, DynamicTextureHandle texture) {
@@ -182,25 +194,56 @@ public final class ScreenTextureManager {
             this.descriptor = descriptor;
             this.source = source;
             this.texture = texture;
+            this.gradedFrame = new VideoFrame(source.getWidth(), source.getHeight());
         }
 
-        private boolean matches(ScreenGroupMembership other, VideoSourceDescriptor otherDescriptor) {
+        private boolean matches(ScreenGroupMembership other, VideoSourceDescriptor otherDescriptor,
+                                ScreenDisplaySettings displaySettings) {
             return membership.gridWidth() == other.gridWidth()
                     && membership.gridHeight() == other.gridHeight()
                     && membership.groupOrigin().equals(other.groupOrigin())
-                    && descriptor.cacheKey().equals(otherDescriptor.cacheKey());
+                    && descriptor.cacheKey().equals(otherDescriptor.cacheKey())
+                    && displayCacheKey.equals(displaySettings.cacheKey());
         }
 
         private DynamicTextureHandle texture() {
             return texture;
         }
 
-        private void tick() {
+        private int[] frameSize() {
+            return new int[]{
+                    lastFrameWidth > 0 ? lastFrameWidth : source.getWidth(),
+                    lastFrameHeight > 0 ? lastFrameHeight : source.getHeight()
+            };
+        }
+
+        private void tick(Level level) {
+            ScreenDisplaySettings displaySettings = LedScreenBlockEntity.resolveDisplaySettings(level, membership);
+            displayCacheKey = displaySettings.cacheKey();
+
             source.tick();
             VideoFrame frame = source.getCurrentFrame();
-            if (frame.getWidth() == source.getWidth() && frame.getHeight() == source.getHeight()) {
+            lastFrameWidth = frame.getWidth();
+            lastFrameHeight = frame.getHeight();
+
+            if (frame.getWidth() != source.getWidth() || frame.getHeight() != source.getHeight()) {
+                return;
+            }
+
+            if (displaySettings.needsColorGrading()) {
+                ensureGradedFrameSize(frame.getWidth(), frame.getHeight());
+                DisplayColorGrading.applyInto(frame, gradedFrame, displaySettings);
+                texture.upload(gradedFrame);
+            } else {
                 texture.upload(frame);
             }
+        }
+
+        private void ensureGradedFrameSize(int width, int height) {
+            if (gradedFrame != null && gradedFrame.getWidth() == width && gradedFrame.getHeight() == height) {
+                return;
+            }
+            gradedFrame = new VideoFrame(width, height);
         }
 
         @Override

@@ -10,7 +10,7 @@ import net.minecraftforge.network.simple.SimpleChannel;
  */
 public final class ModNetworking {
 
-    private static final String PROTOCOL_VERSION = "1";
+    private static final String PROTOCOL_VERSION = "2";
 
     public static final SimpleChannel CHANNEL = NetworkRegistry.newSimpleChannel(
             new ResourceLocation(LumaVisionMod.MOD_ID, "main"),
@@ -34,6 +34,13 @@ public final class ModNetworking {
                 SetScreenSourcePacket::encode,
                 SetScreenSourcePacket::decode,
                 SetScreenSourcePacket::handle
+        );
+        CHANNEL.registerMessage(
+                nextPacketId++,
+                SetScreenDisplayPacket.class,
+                SetScreenDisplayPacket::encode,
+                SetScreenDisplayPacket::decode,
+                SetScreenDisplayPacket::handle
         );
         LumaVisionMod.LOGGER.debug("LumaVision networking ready (protocol v{})", PROTOCOL_VERSION);
     }

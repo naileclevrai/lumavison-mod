@@ -8,11 +8,16 @@ import fr.lumavision.client.gui.components.ProviderSelectionList;
 import fr.lumavision.client.gui.components.SourceSelectionList;
 import fr.lumavision.client.video.catalog.ClientVideoSourceCatalog;
 import fr.lumavision.network.ModNetworking;
+import fr.lumavision.network.SetScreenDisplayPacket;
 import fr.lumavision.network.SetScreenSourcePacket;
+import fr.lumavision.screen.DisplayMode;
+import fr.lumavision.screen.ScreenDisplaySettings;
+import fr.lumavision.screen.ScreenWallPermissions;
 import fr.lumavision.video.VideoSourceDescriptor;
 import fr.lumavision.video.provider.CatalogSourceEntry;
 import fr.lumavision.video.provider.VideoSourceProvider;
 import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.components.AbstractSliderButton;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.inventory.MenuAccess;
 import net.minecraft.network.chat.Component;
@@ -23,16 +28,24 @@ import net.minecraftforge.api.distmarker.OnlyIn;
 import org.lwjgl.glfw.GLFW;
 
 import java.util.List;
+import java.util.UUID;
 
 /**
- * In-game screen for choosing a media provider and source via {@link ClientVideoSourceCatalog}.
+ * In-game screen for choosing media sources and display properties.
  */
 @OnlyIn(Dist.CLIENT)
 public final class ScreenConfigScreen extends Screen implements MenuAccess<ScreenConfigMenu> {
 
+    private enum ConfigTab {
+        SOURCE,
+        DISPLAY
+    }
+
     private static final int PANEL_WIDTH = 380;
-    private static final int PANEL_HEIGHT = 300;
+    private static final int PANEL_HEIGHT_SOURCE = 300;
+    private static final int PANEL_HEIGHT_DISPLAY = 340;
     private static final int HEADER_HEIGHT = 44;
+    private static final int TAB_HEIGHT = 22;
     private static final int FOOTER_HEIGHT = 36;
     private static final int PROVIDER_COLUMN_WIDTH = 130;
     private static final int PADDING = 10;
@@ -45,9 +58,14 @@ public final class ScreenConfigScreen extends Screen implements MenuAccess<Scree
 
     private int panelLeft;
     private int panelTop;
+    private int panelHeight;
+
+    private ConfigTab activeTab = ConfigTab.SOURCE;
+    private boolean canConfigure = true;
 
     private VideoSourceProvider selectedProvider;
     private CatalogSourceEntry selectedSource;
+    private ScreenDisplaySettings displaySettings = ScreenDisplaySettings.DEFAULT;
     private Component subtitle = Component.empty();
     private Component statusMessage = Component.empty();
 
@@ -77,15 +95,86 @@ public final class ScreenConfigScreen extends Screen implements MenuAccess<Scree
     }
 
     private void computePanelBounds() {
+        panelHeight = activeTab == ConfigTab.SOURCE ? PANEL_HEIGHT_SOURCE : PANEL_HEIGHT_DISPLAY;
         panelLeft = (width - PANEL_WIDTH) / 2;
-        panelTop = (height - PANEL_HEIGHT) / 2;
+        panelTop = (height - panelHeight) / 2;
     }
 
     private void buildWidgets() {
         clearWidgets();
 
-        int contentTop = panelTop + HEADER_HEIGHT + 16;
-        int footerTop = panelTop + PANEL_HEIGHT - FOOTER_HEIGHT;
+        int tabY = panelTop + HEADER_HEIGHT + 4;
+        addRenderableWidget(LumaButton.secondary(
+                panelLeft + PADDING,
+                tabY,
+                80,
+                TAB_HEIGHT,
+                Component.translatable("gui.lumavision.screen_config.tab_source"),
+                button -> switchTab(ConfigTab.SOURCE)
+        ));
+        addRenderableWidget(LumaButton.secondary(
+                panelLeft + PADDING + 86,
+                tabY,
+                80,
+                TAB_HEIGHT,
+                Component.translatable("gui.lumavision.screen_config.tab_display"),
+                button -> switchTab(ConfigTab.DISPLAY)
+        ));
+
+        if (activeTab == ConfigTab.SOURCE) {
+            buildSourceWidgets();
+        } else {
+            buildDisplayWidgets();
+        }
+
+        int buttonY = panelTop + panelHeight - FOOTER_HEIGHT + 8;
+        int buttonH = 20;
+
+        addRenderableWidget(LumaButton.secondary(
+                panelLeft + PADDING,
+                buttonY,
+                72,
+                buttonH,
+                Component.translatable("gui.lumavision.screen_config.cancel"),
+                button -> onClose()
+        ));
+
+        if (activeTab == ConfigTab.SOURCE) {
+            addRenderableWidget(LumaButton.secondary(
+                    panelLeft + PANEL_WIDTH / 2 - 40,
+                    buttonY,
+                    80,
+                    buttonH,
+                    Component.translatable("gui.lumavision.screen_config.refresh"),
+                    button -> refreshSources()
+            ));
+        }
+
+        applyButton = addRenderableWidget(LumaButton.primary(
+                panelLeft + PANEL_WIDTH - PADDING - 80,
+                buttonY,
+                80,
+                buttonH,
+                Component.translatable("gui.lumavision.screen_config.apply"),
+                button -> applySelection()
+        ));
+        applyButton.active = canConfigure;
+        updateApplyButton();
+    }
+
+    private void switchTab(ConfigTab tab) {
+        activeTab = tab;
+        computePanelBounds();
+        buildWidgets();
+        if (activeTab == ConfigTab.SOURCE) {
+            rebuildSourceList();
+        }
+        updateApplyButton();
+    }
+
+    private void buildSourceWidgets() {
+        int contentTop = panelTop + HEADER_HEIGHT + TAB_HEIGHT + 16;
+        int footerTop = panelTop + panelHeight - FOOTER_HEIGHT;
         int listBottom = footerTop - STATUS_HEIGHT - PADDING - 4;
 
         int providerListLeft = panelLeft + PADDING;
@@ -100,36 +189,95 @@ public final class ScreenConfigScreen extends Screen implements MenuAccess<Scree
         sourceList = new SourceSelectionList(this, minecraft, sourceListWidth, contentTop, listBottom);
         sourceList.setLeftPos(sourceListLeft);
         addRenderableWidget(sourceList);
+    }
 
-        int buttonY = panelTop + PANEL_HEIGHT - FOOTER_HEIGHT + 8;
-        int buttonH = 20;
+    private void buildDisplayWidgets() {
+        int left = panelLeft + PADDING;
+        int right = panelLeft + PANEL_WIDTH - PADDING;
+        int colWidth = (right - left - 8) / 2;
+        int y = panelTop + HEADER_HEIGHT + TAB_HEIGHT + 20;
 
-        addRenderableWidget(LumaButton.secondary(
-                panelLeft + PADDING,
-                buttonY,
-                72,
-                buttonH,
-                Component.translatable("gui.lumavision.screen_config.cancel"),
-                button -> onClose()
-        ));
+        LumaButton rotationButton = addRenderableWidget(LumaButton.secondary(left, y, colWidth, 20,
+                Component.translatable("gui.lumavision.screen_config.rotation", displaySettings.rotation()),
+                button -> {
+                    int next = (displaySettings.rotation() + 90) % 360;
+                    displaySettings = displaySettings.withRotation(next);
+                    buildWidgets();
+                }));
+        rotationButton.active = canConfigure;
 
-        addRenderableWidget(LumaButton.secondary(
-                panelLeft + PANEL_WIDTH / 2 - 40,
-                buttonY,
-                80,
-                buttonH,
-                Component.translatable("gui.lumavision.screen_config.refresh"),
-                button -> refreshSources()
-        ));
+        LumaButton modeButton = addRenderableWidget(LumaButton.secondary(left + colWidth + 8, y, colWidth, 20,
+                Component.translatable("gui.lumavision.screen_config.display_mode",
+                        Component.translatable("gui.lumavision.screen_config.mode." + displaySettings.mode().name().toLowerCase())),
+                button -> {
+                    displaySettings = displaySettings.withMode(displaySettings.mode().next());
+                    buildWidgets();
+                }));
+        modeButton.active = canConfigure;
 
-        applyButton = addRenderableWidget(LumaButton.primary(
-                panelLeft + PANEL_WIDTH - PADDING - 80,
-                buttonY,
-                80,
-                buttonH,
-                Component.translatable("gui.lumavision.screen_config.apply"),
-                button -> applySelection()
-        ));
+        y += 28;
+        LumaButton mirrorHButton = addRenderableWidget(LumaButton.secondary(left, y, colWidth, 20,
+                Component.translatable("gui.lumavision.screen_config.mirror_h",
+                        mirrorLabel(displaySettings.mirrorH())),
+                button -> {
+                    displaySettings = displaySettings.withMirrorH(!displaySettings.mirrorH());
+                    buildWidgets();
+                }));
+        mirrorHButton.active = canConfigure;
+
+        LumaButton mirrorVButton = addRenderableWidget(LumaButton.secondary(left + colWidth + 8, y, colWidth, 20,
+                Component.translatable("gui.lumavision.screen_config.mirror_v",
+                        mirrorLabel(displaySettings.mirrorV())),
+                button -> {
+                    displaySettings = displaySettings.withMirrorV(!displaySettings.mirrorV());
+                    buildWidgets();
+                }));
+        mirrorVButton.active = canConfigure;
+
+        y += 32;
+        y = addSlider(left, right, y, "brightness", 0.0F, 2.0F, displaySettings.brightness(),
+                value -> displaySettings = displaySettings.withBrightness(value));
+        y = addSlider(left, right, y, "contrast", 0.0F, 2.0F, displaySettings.contrast(),
+                value -> displaySettings = displaySettings.withContrast(value));
+        y = addSlider(left, right, y, "gamma", 0.5F, 2.5F, displaySettings.gamma(),
+                value -> displaySettings = displaySettings.withGamma(value));
+        addSlider(left, right, y, "color_temp", -1.0F, 1.0F, displaySettings.colorTemp(),
+                value -> displaySettings = displaySettings.withColorTemp(value));
+    }
+
+    private Component mirrorLabel(boolean enabled) {
+        return Component.translatable(enabled
+                ? "gui.lumavision.screen_config.on"
+                : "gui.lumavision.screen_config.off");
+    }
+
+    private int addSlider(int left, int right, int y, String key, float min, float max, float current,
+                          java.util.function.Consumer<Float> onChange) {
+        float normalized = (current - min) / (max - min);
+        AbstractSliderButton slider = new AbstractSliderButton(
+                left, y, right - left, 18,
+                sliderLabel(key, current),
+                normalized
+        ) {
+            @Override
+            protected void updateMessage() {
+                float value = (float) (min + (max - min) * this.value);
+                setMessage(sliderLabel(key, value));
+            }
+
+            @Override
+            protected void applyValue() {
+                float value = (float) (min + (max - min) * this.value);
+                onChange.accept(value);
+            }
+        };
+        slider.active = canConfigure;
+        addRenderableWidget(slider);
+        return y + 24;
+    }
+
+    private Component sliderLabel(String key, float value) {
+        return Component.translatable("gui.lumavision.screen_config." + key, String.format("%.2f", value));
     }
 
     private void initializeSelection() {
@@ -141,6 +289,16 @@ public final class ScreenConfigScreen extends Screen implements MenuAccess<Scree
                         screen.getGroupMembership().gridWidth(),
                         screen.getGroupMembership().gridHeight()
                 );
+            }
+
+            displaySettings = LedScreenBlockEntity.resolveDisplaySettings(minecraft.level, screen.getGroupMembership());
+
+            UUID owner = screen.getOwnerUuid();
+            if (minecraft.player != null && owner != null) {
+                canConfigure = ScreenWallPermissions.canConfigure(minecraft.player, minecraft.level, menu.getGroupOrigin());
+                if (!canConfigure) {
+                    statusMessage = Component.translatable("gui.lumavision.screen_config.read_only");
+                }
             }
 
             VideoSourceDescriptor current = CATALOG.resolve(screen);
@@ -171,6 +329,9 @@ public final class ScreenConfigScreen extends Screen implements MenuAccess<Scree
     }
 
     public void selectProvider(VideoSourceProvider provider) {
+        if (!canConfigure) {
+            return;
+        }
         selectedProvider = provider;
         selectedSource = null;
         if (providerList != null) {
@@ -186,10 +347,13 @@ public final class ScreenConfigScreen extends Screen implements MenuAccess<Scree
     }
 
     public boolean isProviderSelectable(VideoSourceProvider provider) {
-        return provider.isImplemented();
+        return canConfigure && provider.isImplemented();
     }
 
     public void selectSource(CatalogSourceEntry source) {
+        if (!canConfigure) {
+            return;
+        }
         selectedSource = source;
         updateApplyButton();
     }
@@ -210,19 +374,17 @@ public final class ScreenConfigScreen extends Screen implements MenuAccess<Scree
             return;
         }
 
-        if (!selectedProvider.isImplemented()) {
+        if (!canConfigure && !statusMessage.getString().isEmpty()) {
+            // keep read-only message
+        } else if (!selectedProvider.isImplemented()) {
             statusMessage = Component.translatable("gui.lumavision.screen_config.provider_unavailable");
             sourceList.setSources(List.of(), null);
             return;
-        }
-
-        if (!selectedProvider.isEnabled()) {
+        } else if (!selectedProvider.isEnabled()) {
             statusMessage = Component.translatable("gui.lumavision.screen_config.provider_disabled");
             sourceList.setSources(List.of(), null);
             return;
-        }
-
-        if (!selectedProvider.isAvailable()) {
+        } else if (!selectedProvider.isAvailable()) {
             String reason = Component.translatable("gui.lumavision.screen_config.provider_unavailable").getString();
             String detail = selectedProvider.unavailableReason();
             if (detail != null && !detail.isBlank()) {
@@ -236,7 +398,7 @@ public final class ScreenConfigScreen extends Screen implements MenuAccess<Scree
         List<CatalogSourceEntry> sources = CATALOG.listSourcesForProvider(selectedProvider.providerId());
         if (sources.isEmpty()) {
             statusMessage = Component.translatable("gui.lumavision.screen_config.no_sources");
-        } else {
+        } else if (canConfigure || statusMessage.getString().isEmpty()) {
             statusMessage = Component.empty();
         }
 
@@ -253,20 +415,39 @@ public final class ScreenConfigScreen extends Screen implements MenuAccess<Scree
     }
 
     private void updateApplyButton() {
-        if (applyButton != null) {
-            applyButton.active = selectedSource != null && selectedSource.selectable();
+        if (applyButton == null) {
+            return;
         }
+        if (!canConfigure) {
+            applyButton.active = false;
+            return;
+        }
+        if (activeTab == ConfigTab.DISPLAY) {
+            applyButton.active = true;
+            return;
+        }
+        applyButton.active = selectedSource != null && selectedSource.selectable();
     }
 
     private void applySelection() {
-        if (selectedSource == null || !selectedSource.selectable()) {
+        if (!canConfigure) {
             return;
         }
 
-        ModNetworking.CHANNEL.sendToServer(new SetScreenSourcePacket(
-                menu.getGroupOrigin(),
-                selectedSource.descriptor().toSourceId()
-        ));
+        if (activeTab == ConfigTab.SOURCE) {
+            if (selectedSource == null || !selectedSource.selectable()) {
+                return;
+            }
+            ModNetworking.CHANNEL.sendToServer(new SetScreenSourcePacket(
+                    menu.getGroupOrigin(),
+                    selectedSource.descriptor().toSourceId()
+            ));
+        } else {
+            ModNetworking.CHANNEL.sendToServer(new SetScreenDisplayPacket(
+                    menu.getGroupOrigin(),
+                    displaySettings
+            ));
+        }
         onClose();
     }
 
@@ -300,7 +481,7 @@ public final class ScreenConfigScreen extends Screen implements MenuAccess<Scree
     @Override
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         GuiTheme.drawOverlay(graphics, width, height);
-        GuiTheme.drawPanel(graphics, panelLeft, panelTop, PANEL_WIDTH, PANEL_HEIGHT);
+        GuiTheme.drawPanel(graphics, panelLeft, panelTop, PANEL_WIDTH, panelHeight);
         GuiTheme.drawHeader(graphics, panelLeft, panelTop, PANEL_WIDTH, HEADER_HEIGHT);
 
         graphics.drawString(font, title, panelLeft + PADDING, panelTop + 10, GuiTheme.TEXT_PRIMARY, false);
@@ -310,44 +491,35 @@ public final class ScreenConfigScreen extends Screen implements MenuAccess<Scree
         }
 
         int columnTop = panelTop + HEADER_HEIGHT;
-        int footerTop = panelTop + PANEL_HEIGHT - FOOTER_HEIGHT;
+        int footerTop = panelTop + panelHeight - FOOTER_HEIGHT;
         GuiTheme.drawDividerHorizontal(graphics, panelLeft + 1, panelLeft + PANEL_WIDTH - 1, columnTop);
-        GuiTheme.drawDividerVertical(
-                graphics,
-                panelLeft + PROVIDER_COLUMN_WIDTH,
-                columnTop + 1,
-                footerTop
-        );
         GuiTheme.drawDividerHorizontal(graphics, panelLeft + 1, panelLeft + PANEL_WIDTH - 1, footerTop);
 
-        int labelY = panelTop + HEADER_HEIGHT + 2;
-        graphics.drawString(
-                font,
-                Component.translatable("gui.lumavision.screen_config.provider"),
-                panelLeft + PADDING,
-                labelY,
-                GuiTheme.TEXT_SECONDARY,
-                false
-        );
-        graphics.drawString(
-                font,
-                Component.translatable("gui.lumavision.screen_config.sources"),
-                panelLeft + PROVIDER_COLUMN_WIDTH + PADDING,
-                labelY,
-                GuiTheme.TEXT_SECONDARY,
-                false
-        );
-
-        int statusY = footerTop - STATUS_HEIGHT - 2;
-        if (!statusMessage.getString().isEmpty()) {
-            graphics.drawString(
-                    font,
-                    statusMessage,
-                    panelLeft + PROVIDER_COLUMN_WIDTH + PADDING,
-                    statusY,
-                    GuiTheme.TEXT_ERROR,
-                    false
+        if (activeTab == ConfigTab.SOURCE) {
+            GuiTheme.drawDividerVertical(
+                    graphics,
+                    panelLeft + PROVIDER_COLUMN_WIDTH,
+                    columnTop + TAB_HEIGHT + 1,
+                    footerTop
             );
+            int labelY = panelTop + HEADER_HEIGHT + TAB_HEIGHT + 2;
+            graphics.drawString(font, Component.translatable("gui.lumavision.screen_config.provider"),
+                    panelLeft + PADDING, labelY, GuiTheme.TEXT_SECONDARY, false);
+            graphics.drawString(font, Component.translatable("gui.lumavision.screen_config.sources"),
+                    panelLeft + PROVIDER_COLUMN_WIDTH + PADDING, labelY, GuiTheme.TEXT_SECONDARY, false);
+
+            int statusY = footerTop - STATUS_HEIGHT - 2;
+            if (!statusMessage.getString().isEmpty()) {
+                graphics.drawString(font, statusMessage,
+                        panelLeft + PROVIDER_COLUMN_WIDTH + PADDING, statusY, GuiTheme.TEXT_ERROR, false);
+            }
+        } else {
+            graphics.drawString(font, Component.translatable("gui.lumavision.screen_config.display_title"),
+                    panelLeft + PADDING, panelTop + HEADER_HEIGHT + TAB_HEIGHT + 4, GuiTheme.TEXT_SECONDARY, false);
+            if (!canConfigure && !statusMessage.getString().isEmpty()) {
+                graphics.drawString(font, statusMessage,
+                        panelLeft + PADDING, footerTop - STATUS_HEIGHT - 2, GuiTheme.TEXT_ERROR, false);
+            }
         }
 
         super.render(graphics, mouseX, mouseY, partialTick);
