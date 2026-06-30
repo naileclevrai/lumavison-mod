@@ -1,0 +1,10 @@
+{
+  "variants": {
+    "facing=down":  { "model": "lumavision:block/led_screen", "x": 90 },
+    "facing=up":    { "model": "lumavision:block/led_screen", "x": 270 },
+    "facing=north": { "model": "lumavision:block/led_screen" },
+    "facing=south": { "model": "lumavision:block/led_screen", "y": 180 },
+    "facing=west":  { "model": "lumavision:block/led_screen", "y": 270 },
+    "facing=east":  { "model": "lumavision:block/led_screen", "y": 90 }
+  }
+}

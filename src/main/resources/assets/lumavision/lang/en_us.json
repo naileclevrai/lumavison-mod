@@ -1,3 +1,5 @@
 {
-  "itemGroup.lumavision": "LumaVision"
+  "itemGroup.lumavision": "LumaVision",
+  "block.lumavision.led_screen": "LED Screen",
+  "item.lumavision.led_screen": "LED Screen"
 }
