@@ -3,7 +3,16 @@ package fr.lumavision.client.video.catalog;
 import fr.lumavision.LumaVisionMod;
 import fr.lumavision.blockentity.LedScreenBlockEntity;
 import fr.lumavision.client.ndi.NdiProvider;
+import fr.lumavision.client.video.provider.BrowserVideoSourceProvider;
+import fr.lumavision.client.video.provider.FileVideoSourceProvider;
+import fr.lumavision.client.video.provider.GifVideoSourceProvider;
+import fr.lumavision.client.video.provider.ImageVideoSourceProvider;
+import fr.lumavision.client.video.provider.NetworkVideoSourceProvider;
+import fr.lumavision.client.video.provider.ScreenCaptureVideoSourceProvider;
+import fr.lumavision.client.video.provider.SpoutVideoSourceProvider;
+import fr.lumavision.client.video.provider.SyphonVideoSourceProvider;
 import fr.lumavision.client.video.provider.TestPatternProvider;
+import fr.lumavision.client.video.provider.WebcamVideoSourceProvider;
 import fr.lumavision.video.VideoSource;
 import fr.lumavision.video.VideoSourceDescriptor;
 import fr.lumavision.video.VideoSourceDescriptors;
@@ -31,6 +40,15 @@ public final class ClientVideoSourceCatalog implements VideoSourceCatalog {
 
     private ClientVideoSourceCatalog() {
         register(NdiProvider.INSTANCE);
+        register(FileVideoSourceProvider.INSTANCE);
+        register(GifVideoSourceProvider.INSTANCE);
+        register(ImageVideoSourceProvider.INSTANCE);
+        register(BrowserVideoSourceProvider.INSTANCE);
+        register(WebcamVideoSourceProvider.INSTANCE);
+        register(NetworkVideoSourceProvider.INSTANCE);
+        register(SpoutVideoSourceProvider.INSTANCE);
+        register(SyphonVideoSourceProvider.INSTANCE);
+        register(ScreenCaptureVideoSourceProvider.INSTANCE);
         register(TestPatternProvider.INSTANCE);
     }
 
