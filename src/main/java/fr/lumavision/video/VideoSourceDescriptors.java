@@ -50,6 +50,28 @@ public final class VideoSourceDescriptors {
         return sourceId != null && !sourceId.isBlank();
     }
 
+    /**
+     * Returns whether a persisted source id uses a known provider prefix or test pattern id.
+     */
+    public static boolean isRecognizedSourceId(String sourceId) {
+        if (sourceId == null || sourceId.isBlank()) {
+            return false;
+        }
+
+        String trimmed = sourceId.trim();
+        if (trimmed.equalsIgnoreCase(VideoSourceDescriptor.TEST_PATTERN_ID)) {
+            return true;
+        }
+
+        for (String prefix : PREFIXES) {
+            if (trimmed.regionMatches(true, 0, prefix, 0, prefix.length())) {
+                return !trimmed.substring(prefix.length()).trim().isEmpty();
+            }
+        }
+
+        return false;
+    }
+
     private static VideoSourceDescriptor descriptorForPrefix(String prefix, String payload) {
         if (prefix.equalsIgnoreCase(VideoSourceDescriptor.NDI_PREFIX)) {
             return VideoSourceDescriptor.ndi(payload);
