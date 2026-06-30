@@ -9,7 +9,6 @@ import fr.lumavision.client.display.DisplayUvMapper;
 import fr.lumavision.client.texture.ScreenTextureManager;
 import fr.lumavision.screen.ScreenDisplaySettings;
 import fr.lumavision.screen.ScreenGroupMembership;
-import net.minecraft.client.renderer.LightTexture;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.blockentity.BlockEntityRenderer;
@@ -24,7 +23,7 @@ import net.minecraft.world.level.block.state.BlockState;
  */
 public final class ScreenRenderer implements BlockEntityRenderer<LedScreenBlockEntity> {
 
-    private static final float FACE_EPSILON = 0.001F;
+    private static final float FACE_EPSILON = 0.005F;
 
     public ScreenRenderer(BlockEntityRendererProvider.Context context) {
     }
@@ -37,31 +36,37 @@ public final class ScreenRenderer implements BlockEntityRenderer<LedScreenBlockE
         ScreenGroupMembership group = blockEntity.getGroupMembership();
         ResourceLocation screenTexture = ScreenTextureManager.getInstance().getTexture(blockEntity);
 
-        ScreenDisplaySettings settings = blockEntity.getLevel() == null
-                ? ScreenDisplaySettings.DEFAULT
-                : LedScreenBlockEntity.resolveDisplaySettings(blockEntity.getLevel(), group);
+        ScreenTextureManager.WallRenderContext context = ScreenTextureManager.getInstance()
+                .getWallRenderContext(group.groupKey());
+        ScreenDisplaySettings settings;
+        int frameWidth;
+        int frameHeight;
+        int[] vertexColor;
 
-        int[] frameSize = ScreenTextureManager.getInstance().getFrameSize(group.groupKey());
-        DisplayUvMapper.MappedUv mapped = DisplayUvMapper.map(
-                group,
-                settings,
-                frameSize[0],
-                frameSize[1]
-        );
+        if (context != null) {
+            settings = context.settings();
+            frameWidth = context.frameWidth();
+            frameHeight = context.frameHeight();
+            vertexColor = context.vertexColor();
+        } else {
+            settings = blockEntity.getLevel() == null
+                    ? ScreenDisplaySettings.DEFAULT
+                    : LedScreenBlockEntity.resolveDisplaySettings(blockEntity.getLevel(), group);
+            int[] frameSize = ScreenTextureManager.getInstance().getFrameSize(group.groupKey());
+            frameWidth = frameSize[0];
+            frameHeight = frameSize[1];
+            vertexColor = DisplayColorGrading.vertexColor(settings);
+        }
 
-        int[] vertexColor = DisplayColorGrading.vertexColor(settings);
-        int light = LightTexture.FULL_BRIGHT;
+        DisplayUvMapper.MappedUv mapped = DisplayUvMapper.map(group, settings, frameWidth, frameHeight);
         VertexConsumer consumer = bufferSource.getBuffer(RenderType.entityCutoutNoCull(screenTexture));
         drawFacingQuad(consumer, poseStack.last(), facing,
                 mapped.quadX0(), mapped.quadY0(), mapped.quadX1(), mapped.quadY1(), FACE_EPSILON,
                 mapped.u0(), mapped.v0(), mapped.u1(), mapped.v1(),
                 vertexColor[0], vertexColor[1], vertexColor[2], vertexColor[3],
-                light, packedOverlay);
+                packedLight, packedOverlay);
     }
 
-    /**
-     * Draws a unit-cube-aligned quad on the given face.
-     */
     private static void drawFacingQuad(VertexConsumer consumer, PoseStack.Pose pose, Direction facing,
                                        float x0, float y0, float x1, float y1, float epsilon,
                                        float u0, float v0, float u1, float v1,
@@ -122,11 +127,11 @@ public final class ScreenRenderer implements BlockEntityRenderer<LedScreenBlockE
 
     @Override
     public boolean shouldRenderOffScreen(LedScreenBlockEntity blockEntity) {
-        return true;
+        return false;
     }
 
     @Override
     public int getViewDistance() {
-        return 256;
+        return 64;
     }
 }

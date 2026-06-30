@@ -2,7 +2,6 @@ package fr.lumavision.client.texture;
 
 import fr.lumavision.blockentity.LedScreenBlockEntity;
 import fr.lumavision.client.display.DisplayColorGrading;
-import fr.lumavision.client.shimmer.LedAmbilightController;
 import fr.lumavision.client.video.catalog.ClientVideoSourceCatalog;
 import fr.lumavision.config.ModConfig;
 import fr.lumavision.screen.ScreenDisplaySettings;
@@ -10,10 +9,13 @@ import fr.lumavision.screen.ScreenGroupMembership;
 import fr.lumavision.video.VideoFrame;
 import fr.lumavision.video.VideoSource;
 import fr.lumavision.video.VideoSourceDescriptor;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
 
@@ -32,14 +34,18 @@ import java.util.Set;
 @OnlyIn(Dist.CLIENT)
 public final class ScreenTextureManager {
 
-    private static final int BASE_CELL_RESOLUTION = 128;
     private static final int[] FALLBACK_FRAME_SIZE = {16, 16};
+    /** Pipelines beyond this distance skip source tick and GPU upload. */
+    private static final int MAX_PIPELINE_TICK_DISTANCE = 96;
+    private static final int FRAME_HASH_SAMPLE_SIZE = 8;
+    private static final int PRUNE_INTERVAL_TICKS = 40;
 
     private static final ScreenTextureManager INSTANCE = new ScreenTextureManager();
 
     private final Map<Long, ScreenPipeline> pipelines = new HashMap<>();
     private final Set<BlockPos> pendingOrigins = new HashSet<>();
     private DynamicTextureHandle fallbackTexture;
+    private int pruneTickCounter;
 
     private ScreenTextureManager() {
     }
@@ -64,13 +70,37 @@ public final class ScreenTextureManager {
         return pipeline == null ? FALLBACK_FRAME_SIZE : pipeline.frameSize();
     }
 
+    public WallRenderContext getWallRenderContext(long groupKey) {
+        ScreenPipeline pipeline = pipelines.get(groupKey);
+        return pipeline == null ? null : pipeline.renderContext();
+    }
+
+    public record WallRenderContext(
+            ScreenDisplaySettings settings,
+            int frameWidth,
+            int frameHeight,
+            int[] vertexColor
+    ) {
+    }
+
     public void tick(Level level) {
         processPendingPipelines(level);
-        pruneInvalid(level);
+        if (++pruneTickCounter >= PRUNE_INTERVAL_TICKS) {
+            pruneTickCounter = 0;
+            pruneInvalid(level);
+        }
+        Vec3 playerPos = playerPosition();
         for (ScreenPipeline pipeline : pipelines.values()) {
+            if (playerPos != null && !pipeline.isWithinTickRange(playerPos)) {
+                continue;
+            }
             pipeline.tick(level);
         }
-        LedAmbilightController.getInstance().pruneExcept(pipelines.keySet());
+    }
+
+    private static Vec3 playerPosition() {
+        LocalPlayer player = Minecraft.getInstance().player;
+        return player == null ? null : player.position();
     }
 
     public void clear() {
@@ -79,7 +109,6 @@ public final class ScreenTextureManager {
         }
         pipelines.clear();
         pendingOrigins.clear();
-        LedAmbilightController.getInstance().clear();
         if (fallbackTexture != null) {
             fallbackTexture.close();
             fallbackTexture = null;
@@ -136,8 +165,9 @@ public final class ScreenTextureManager {
     }
 
     static int[] computeTextureSize(int gridWidth, int gridHeight) {
-        int width = BASE_CELL_RESOLUTION * gridWidth;
-        int height = BASE_CELL_RESOLUTION * gridHeight;
+        int cellResolution = ModConfig.BASE_CELL_RESOLUTION.get();
+        int width = cellResolution * gridWidth;
+        int height = cellResolution * gridHeight;
         int maxResolution = ModConfig.MAX_TEXTURE_RESOLUTION.get();
         int longest = Math.max(width, height);
 
@@ -190,6 +220,10 @@ public final class ScreenTextureManager {
         private int lastFrameWidth;
         private int lastFrameHeight;
         private String displayCacheKey = ScreenDisplaySettings.DEFAULT.cacheKey();
+        private int lastUploadedContentHash;
+        private long lastUploadMs;
+        private WallRenderContext renderContext;
+        private String lastRenderContextKey = "";
 
         private ScreenPipeline(ScreenGroupMembership membership, VideoSourceDescriptor descriptor,
                                VideoSource source, DynamicTextureHandle texture) {
@@ -220,6 +254,34 @@ public final class ScreenTextureManager {
             };
         }
 
+        private WallRenderContext renderContext() {
+            return renderContext;
+        }
+
+        private void updateRenderContextIfNeeded(ScreenDisplaySettings displaySettings) {
+            int[] size = frameSize();
+            String key = displaySettings.cacheKey() + "@" + size[0] + "x" + size[1];
+            if (key.equals(lastRenderContextKey) && renderContext != null) {
+                return;
+            }
+            lastRenderContextKey = key;
+            renderContext = new WallRenderContext(
+                    displaySettings,
+                    size[0],
+                    size[1],
+                    DisplayColorGrading.vertexColor(displaySettings)
+            );
+        }
+
+        private boolean isWithinTickRange(Vec3 playerPos) {
+            BlockPos origin = membership.groupOrigin();
+            double dx = playerPos.x - (origin.getX() + 0.5);
+            double dy = playerPos.y - (origin.getY() + 0.5);
+            double dz = playerPos.z - (origin.getZ() + 0.5);
+            double maxDist = MAX_PIPELINE_TICK_DISTANCE + Math.max(membership.gridWidth(), membership.gridHeight());
+            return dx * dx + dy * dy + dz * dz <= maxDist * maxDist;
+        }
+
         private void tick(Level level) {
             ScreenDisplaySettings displaySettings = LedScreenBlockEntity.resolveDisplaySettings(level, membership);
             displayCacheKey = displaySettings.cacheKey();
@@ -228,30 +290,44 @@ public final class ScreenTextureManager {
             VideoFrame frame = source.getCurrentFrame();
             lastFrameWidth = frame.getWidth();
             lastFrameHeight = frame.getHeight();
+            updateRenderContextIfNeeded(displaySettings);
 
             if (frame.getWidth() != source.getWidth() || frame.getHeight() != source.getHeight()) {
                 return;
+            }
+
+            int contentHash = computeUploadContentHash(frame, displaySettings);
+            if (contentHash == lastUploadedContentHash) {
+                return;
+            }
+
+            long nowMs = System.currentTimeMillis();
+            int maxUploadsPerSecond = ModConfig.MAX_TEXTURE_UPDATES_PER_SECOND.get();
+            if (maxUploadsPerSecond > 0 && lastUploadMs > 0) {
+                long minIntervalMs = 1000L / maxUploadsPerSecond;
+                if (nowMs - lastUploadMs < minIntervalMs) {
+                    return;
+                }
             }
 
             if (displaySettings.needsColorGrading()) {
                 ensureGradedFrameSize(frame.getWidth(), frame.getHeight());
                 DisplayColorGrading.applyInto(frame, gradedFrame, displaySettings);
                 texture.upload(gradedFrame);
-                notifyAmbilight(level, gradedFrame, displaySettings);
             } else {
                 texture.upload(frame);
-                notifyAmbilight(level, frame, displaySettings);
             }
+
+            lastUploadedContentHash = contentHash;
+            lastUploadMs = nowMs;
         }
 
-        private void notifyAmbilight(Level level, VideoFrame uploadedFrame, ScreenDisplaySettings displaySettings) {
-            LedAmbilightController.getInstance().onFrameUploaded(
-                    membership.groupKey(),
-                    uploadedFrame,
-                    membership,
-                    displaySettings,
-                    level
-            );
+        private static int computeUploadContentHash(VideoFrame frame, ScreenDisplaySettings displaySettings) {
+            int hash = FrameHasher.sampleHash(frame, FRAME_HASH_SAMPLE_SIZE, FRAME_HASH_SAMPLE_SIZE);
+            if (displaySettings.needsColorGrading()) {
+                hash = 31 * hash + displaySettings.cacheKey().hashCode();
+            }
+            return hash;
         }
 
         private void ensureGradedFrameSize(int width, int height) {
@@ -263,7 +339,6 @@ public final class ScreenTextureManager {
 
         @Override
         public void close() {
-            LedAmbilightController.getInstance().removeLight(membership.groupKey());
             source.dispose();
             texture.close();
         }

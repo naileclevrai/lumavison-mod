@@ -84,6 +84,11 @@ public final class ScreenConfigScreen extends Screen implements MenuAccess<Scree
         return menu;
     }
 
+    /** Exposed for selection lists ({@code AbstractSelectionList} needs screen height). */
+    public int guiHeight() {
+        return height;
+    }
+
     @Override
     protected void init() {
         super.init();
@@ -479,6 +484,11 @@ public final class ScreenConfigScreen extends Screen implements MenuAccess<Scree
     }
 
     @Override
+    public void renderBackground(GuiGraphics graphics) {
+        // Custom background in render() — skip vanilla dirt/menu tiles.
+    }
+
+    @Override
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         GuiTheme.drawOverlay(graphics, width, height);
         GuiTheme.drawPanel(graphics, panelLeft, panelTop, PANEL_WIDTH, panelHeight);
@@ -496,6 +506,25 @@ public final class ScreenConfigScreen extends Screen implements MenuAccess<Scree
         GuiTheme.drawDividerHorizontal(graphics, panelLeft + 1, panelLeft + PANEL_WIDTH - 1, footerTop);
 
         if (activeTab == ConfigTab.SOURCE) {
+            if (providerList != null) {
+                GuiTheme.drawListBackground(
+                        graphics,
+                        providerList.getLeft(),
+                        providerList.getTop(),
+                        providerList.getWidth(),
+                        providerList.getBottom() - providerList.getTop()
+                );
+            }
+            if (sourceList != null) {
+                GuiTheme.drawListBackground(
+                        graphics,
+                        sourceList.getLeft(),
+                        sourceList.getTop(),
+                        sourceList.getWidth(),
+                        sourceList.getBottom() - sourceList.getTop()
+                );
+            }
+
             GuiTheme.drawDividerVertical(
                     graphics,
                     panelLeft + PROVIDER_COLUMN_WIDTH,

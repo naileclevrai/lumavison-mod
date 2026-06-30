@@ -54,23 +54,6 @@ public final class DisplayUvMapper {
         );
     }
 
-    /**
-     * Normalized texture UV bounds [u0, v0, u1, v1] of the video content for the whole wall
-     * (before per-cell rotation/mirror — matches what players see in FIT/FILL/STRETCH).
-     */
-    public static float[] visibleContentUv(
-            ScreenDisplaySettings settings,
-            int frameWidth,
-            int frameHeight,
-            int gridWidth,
-            int gridHeight
-    ) {
-        if (frameWidth <= 0 || frameHeight <= 0) {
-            return new float[]{0.0F, 0.0F, 1.0F, 1.0F};
-        }
-        return contentRegion(settings.mode(), frameWidth, frameHeight, gridWidth, gridHeight);
-    }
-
     private static float[] contentRegion(DisplayMode mode, int frameW, int frameH, int gridW, int gridH) {
         float frameAspect = (float) frameW / frameH;
         float wallAspect = (float) gridW / gridH;

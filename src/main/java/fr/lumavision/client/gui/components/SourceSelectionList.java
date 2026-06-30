@@ -26,8 +26,11 @@ public final class SourceSelectionList extends ObjectSelectionList<SourceSelecti
             int listTop,
             int listBottom
     ) {
-        super(minecraft, width, listBottom - listTop, listTop, listBottom, 22);
+        super(minecraft, width, screen.guiHeight(), listTop, listBottom, 22);
         this.screen = screen;
+        setRenderBackground(false);
+        setRenderHeader(false, 0);
+        setRenderTopAndBottom(false);
     }
 
     public void setSources(Iterable<CatalogSourceEntry> sources, CatalogSourceEntry selected) {

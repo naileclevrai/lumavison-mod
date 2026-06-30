@@ -92,11 +92,6 @@ public class LedScreenBlock extends BaseEntityBlock {
         return true;
     }
 
-    @Override
-    public float getShadeBrightness(BlockState state, BlockGetter level, BlockPos pos) {
-        return 1.0F;
-    }
-
     @Nullable
     @Override
     public BlockEntity newBlockEntity(BlockPos pos, BlockState state) {

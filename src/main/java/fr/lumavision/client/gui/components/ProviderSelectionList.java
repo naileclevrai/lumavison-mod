@@ -27,8 +27,11 @@ public final class ProviderSelectionList extends ObjectSelectionList<ProviderSel
             int listTop,
             int listBottom
     ) {
-        super(minecraft, width, listBottom - listTop, listTop, listBottom, 24);
+        super(minecraft, width, screen.guiHeight(), listTop, listBottom, 24);
         this.screen = screen;
+        setRenderBackground(false);
+        setRenderHeader(false, 0);
+        setRenderTopAndBottom(false);
     }
 
     public void setProviders(List<VideoSourceProvider> providers, VideoSourceProvider selected) {

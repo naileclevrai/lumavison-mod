@@ -27,7 +27,6 @@ public final class ModBlocks {
                     .strength(1.5F, 6.0F)
                     .sound(SoundType.METAL)
                     .noOcclusion()
-                    .lightLevel(state -> 12)
                     .isViewBlocking((blockState, level, pos) -> false)
                     .isSuffocating((blockState, level, pos) -> false)));
 

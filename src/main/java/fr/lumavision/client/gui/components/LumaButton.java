@@ -34,6 +34,10 @@ public final class LumaButton extends Button {
 
     @Override
     public void renderWidget(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
+        if (!visible) {
+            return;
+        }
+
         boolean hovered = isHoveredOrFocused();
         int bg;
         int border = 0;

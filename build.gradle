@@ -60,20 +60,9 @@ repositories {
     }
 }
 
-def shimmerDevJar = file("libs/Shimmer-forge-1.20.1-0.2.4.jar")
-
 dependencies {
     minecraft "net.minecraftforge:forge:${forge_version}"
 
-    // Optional Shimmer for runClient — fg.deobf remaps for userdev (do NOT copy raw JAR to run/mods).
-    if (shimmerDevJar.exists()) {
-        runtimeOnly(fg.deobf("blank:Shimmer-forge:1.20.1-0.2.4")) {
-            transitive = false
-        }
-    }
-
-    // Shimmer ambilight in LumaVision uses runtime reflection only (not bundled in the mod JAR).
-    // Plain implementation is not visible to Forge's mod classloader at runtime.
     minecraftLibrary "me.walkerknapp:devolay:2.1.1:integrated"
     jarJar(group: "me.walkerknapp", name: "devolay", version: "[2.1,2.2)") {
         jarJar.pin(it, "2.1.1")
