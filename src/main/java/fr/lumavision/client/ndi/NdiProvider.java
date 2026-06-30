@@ -53,9 +53,12 @@ public final class NdiProvider implements VideoSourceProvider {
         return ModConfig.ENABLE_NDI.get();
     }
 
+    /**
+     * Whether the NDI native runtime loaded successfully (independent of the enableNdi config flag).
+     */
     @Override
     public boolean isAvailable() {
-        return isEnabled() && NdiRuntime.isAvailable();
+        return NdiRuntime.init();
     }
 
     @Override
@@ -65,7 +68,8 @@ public final class NdiProvider implements VideoSourceProvider {
 
     @Override
     public void start() {
-        if (isEnabled() && NdiRuntime.init()) {
+        ensureRuntime();
+        if (isEnabled()) {
             NdiDiscoveryService.getInstance().start();
         }
     }
@@ -73,6 +77,32 @@ public final class NdiProvider implements VideoSourceProvider {
     @Override
     public void stop() {
         NdiDiscoveryService.getInstance().shutdown();
+    }
+
+    @Override
+    public void refreshSources() {
+        ensureRuntime();
+        if (isEnabled()) {
+            NdiDiscoveryService.getInstance().start();
+        }
+    }
+
+    /**
+     * Called after config reload or client bootstrap to align discovery with {@link ModConfig#ENABLE_NDI}.
+     */
+    public static void applyConfig() {
+        ensureRuntime();
+        if (ModConfig.ENABLE_NDI.get()) {
+            NdiDiscoveryService.getInstance().start();
+        } else {
+            NdiDiscoveryService.getInstance().shutdown();
+        }
+    }
+
+    private static void ensureRuntime() {
+        if (!NdiRuntime.init()) {
+            LumaVisionMod.LOGGER.warn("NDI runtime is not available on this system");
+        }
     }
 
     @Override
@@ -87,9 +117,12 @@ public final class NdiProvider implements VideoSourceProvider {
 
     @Override
     public List<CatalogSourceEntry> listSources() {
-        if (!isAvailable()) {
+        if (!isEnabled() || !isAvailable()) {
             return List.of();
         }
+
+        ensureRuntime();
+        NdiDiscoveryService.getInstance().start();
 
         List<CatalogSourceEntry> entries = new ArrayList<>();
         for (NdiSourceInfo source : NdiDiscoveryService.getInstance().getDiscoveredSources()) {
@@ -108,7 +141,7 @@ public final class NdiProvider implements VideoSourceProvider {
     @Override
     @Nullable
     public VideoSourceDescriptor defaultDescriptor() {
-        if (!isAvailable()) {
+        if (!isEnabled() || !isAvailable()) {
             return null;
         }
 
@@ -129,7 +162,7 @@ public final class NdiProvider implements VideoSourceProvider {
 
     @Override
     public VideoSource create(VideoSourceDescriptor descriptor, int targetWidth, int targetHeight) {
-        if (!supports(descriptor) || !isAvailable()) {
+        if (!supports(descriptor) || !isEnabled() || !isAvailable()) {
             throw new IllegalStateException("NDI provider cannot create source for " + descriptor.cacheKey());
         }
 

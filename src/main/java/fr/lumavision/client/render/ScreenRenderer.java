@@ -2,7 +2,6 @@ package fr.lumavision.client.render;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
-import fr.lumavision.LumaVisionMod;
 import fr.lumavision.block.LedScreenBlock;
 import fr.lumavision.blockentity.LedScreenBlockEntity;
 import fr.lumavision.client.texture.ScreenTextureManager;
@@ -19,16 +18,11 @@ import org.joml.Matrix3f;
 import org.joml.Matrix4f;
 
 /**
- * Renders an LED screen surface using whatever {@link net.minecraft.resources.ResourceLocation}
+ * Renders an LED screen surface using whatever {@link ResourceLocation}
  * the {@link ScreenTextureManager} provides — without knowing the pixel source.
  */
 public final class ScreenRenderer implements BlockEntityRenderer<LedScreenBlockEntity> {
 
-    private static final ResourceLocation FRAME_TEXTURE =
-            new ResourceLocation(LumaVisionMod.MOD_ID, "textures/block/led_screen_frame.png");
-
-    /** Inset from block edge to the lit display area (matches model UVs). */
-    private static final float INSET = 1.0F / 16.0F;
     private static final float FACE_EPSILON = 0.001F;
 
     public ScreenRenderer(BlockEntityRendererProvider.Context context) {
@@ -43,32 +37,15 @@ public final class ScreenRenderer implements BlockEntityRenderer<LedScreenBlockE
         ResourceLocation screenTexture = ScreenTextureManager.getInstance().getTexture(blockEntity);
 
         int light = LightTexture.FULL_BRIGHT;
-
-        renderFrame(poseStack, bufferSource, facing, light, packedOverlay);
-        renderDisplayQuad(poseStack, bufferSource, facing, screenTexture, group, light, packedOverlay);
-    }
-
-    private static void renderFrame(PoseStack poseStack, MultiBufferSource bufferSource, Direction facing,
-                                    int light, int overlay) {
-        VertexConsumer consumer = bufferSource.getBuffer(RenderType.entityCutoutNoCull(FRAME_TEXTURE));
-        drawFacingQuad(consumer, poseStack.last(), facing, 0.0F, 0.0F, 1.0F, 1.0F, FACE_EPSILON,
-                0.0F, 0.0F, 1.0F, 1.0F, light, overlay);
-    }
-
-    private static void renderDisplayQuad(PoseStack poseStack, MultiBufferSource bufferSource, Direction facing,
-                                          ResourceLocation texture, ScreenGroupMembership group,
-                                          int light, int overlay) {
-        VertexConsumer consumer = bufferSource.getBuffer(RenderType.entityCutoutNoCull(texture));
+        VertexConsumer consumer = bufferSource.getBuffer(RenderType.entityCutoutNoCull(screenTexture));
         drawFacingQuad(consumer, poseStack.last(), facing,
-                INSET, INSET, 1.0F - INSET, 1.0F - INSET, FACE_EPSILON * 2.0F,
-                group.uvMinU(), group.uvMinV(), group.uvMaxU(), group.uvMaxV(), light, overlay);
+                0.0F, 0.0F, 1.0F, 1.0F, FACE_EPSILON,
+                group.uvMinU(), group.uvMinV(), group.uvMaxU(), group.uvMaxV(), light, packedOverlay);
     }
 
-  /**
-   * Draws a unit-cube-aligned quad on the given face.
-   *
-   * @param u0 top-left U, v0 top-left V, u1 bottom-right U, v1 bottom-right V (Minecraft UV space)
-   */
+    /**
+     * Draws a unit-cube-aligned quad on the given face.
+     */
     private static void drawFacingQuad(VertexConsumer consumer, PoseStack.Pose pose, Direction facing,
                                        float x0, float y0, float x1, float y1, float epsilon,
                                        float u0, float v0, float u1, float v1,

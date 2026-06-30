@@ -51,11 +51,16 @@ public final class NdiFrameConverter {
     private static void copyBgrx(ByteBuffer data, int srcW, int srcH, int lineStride, VideoFrame dest, boolean hasAlpha) {
         int dstW = dest.getWidth();
         int dstH = dest.getHeight();
+        int rowBytes = Math.max(lineStride, srcW * 4);
         for (int y = 0; y < dstH; y++) {
             int srcY = y * srcH / dstH;
+            int rowBase = srcY * rowBytes;
+            if (rowBase + srcW * 4 > data.limit()) {
+                break;
+            }
             for (int x = 0; x < dstW; x++) {
                 int srcX = x * srcW / dstW;
-                int index = srcY * lineStride + srcX * 4;
+                int index = rowBase + srcX * 4;
                 int b = data.get(index) & 0xFF;
                 int g = data.get(index + 1) & 0xFF;
                 int r = data.get(index + 2) & 0xFF;
@@ -68,11 +73,16 @@ public final class NdiFrameConverter {
     private static void copyRgbx(ByteBuffer data, int srcW, int srcH, int lineStride, VideoFrame dest, boolean hasAlpha) {
         int dstW = dest.getWidth();
         int dstH = dest.getHeight();
+        int rowBytes = Math.max(lineStride, srcW * 4);
         for (int y = 0; y < dstH; y++) {
             int srcY = y * srcH / dstH;
+            int rowBase = srcY * rowBytes;
+            if (rowBase + srcW * 4 > data.limit()) {
+                break;
+            }
             for (int x = 0; x < dstW; x++) {
                 int srcX = x * srcW / dstW;
-                int index = srcY * lineStride + srcX * 4;
+                int index = rowBase + srcX * 4;
                 int r = data.get(index) & 0xFF;
                 int g = data.get(index + 1) & 0xFF;
                 int b = data.get(index + 2) & 0xFF;

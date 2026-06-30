@@ -128,6 +128,10 @@ public final class ScreenConfigScreen extends AbstractContainerScreen<ScreenConf
             return Component.literal(provider.displayName() + " ("
                     + Component.translatable("gui.lumavision.screen_config.coming_soon").getString() + ")");
         }
+        if (!provider.isEnabled()) {
+            return Component.literal(provider.displayName() + " ("
+                    + Component.translatable("gui.lumavision.screen_config.disabled").getString() + ")");
+        }
         if (!provider.isAvailable()) {
             return Component.literal(provider.displayName() + " ("
                     + Component.translatable("gui.lumavision.screen_config.unavailable").getString() + ")");
@@ -151,7 +155,19 @@ public final class ScreenConfigScreen extends AbstractContainerScreen<ScreenConf
             return;
         }
 
-        if (!selectedProvider.isImplemented() || !selectedProvider.isAvailable()) {
+        if (!selectedProvider.isImplemented()) {
+            statusMessage = Component.translatable("gui.lumavision.screen_config.provider_unavailable");
+            sourceList.setSources(List.of(), null);
+            return;
+        }
+
+        if (!selectedProvider.isEnabled()) {
+            statusMessage = Component.translatable("gui.lumavision.screen_config.provider_disabled");
+            sourceList.setSources(List.of(), null);
+            return;
+        }
+
+        if (!selectedProvider.isAvailable()) {
             statusMessage = Component.translatable("gui.lumavision.screen_config.provider_unavailable");
             sourceList.setSources(List.of(), null);
             return;

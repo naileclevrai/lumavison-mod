@@ -15,11 +15,15 @@ import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
 
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * One {@link VideoSource} pipeline per merged screen group (wall).
+ * <p>
+ * GPU uploads happen only during the client tick — never from block entity rendering.
  */
 @OnlyIn(Dist.CLIENT)
 public final class ScreenTextureManager {
@@ -29,6 +33,8 @@ public final class ScreenTextureManager {
     private static final ScreenTextureManager INSTANCE = new ScreenTextureManager();
 
     private final Map<Long, ScreenPipeline> pipelines = new HashMap<>();
+    private final Set<BlockPos> pendingOrigins = new HashSet<>();
+    private DynamicTextureHandle fallbackTexture;
 
     private ScreenTextureManager() {
     }
@@ -37,15 +43,23 @@ public final class ScreenTextureManager {
         return INSTANCE;
     }
 
+    /**
+     * Returns the current GPU texture for a wall. Does not upload or create pipelines —
+     * that work is deferred to {@link #tick(Level)}.
+     */
     public ResourceLocation getTexture(LedScreenBlockEntity blockEntity) {
-        Level level = blockEntity.getLevel();
-        if (level == null) {
-            throw new IllegalStateException("Cannot resolve screen texture without a level");
+        ScreenGroupMembership membership = blockEntity.getGroupMembership();
+        ScreenPipeline pipeline = pipelines.get(membership.groupKey());
+        if (pipeline != null) {
+            return pipeline.texture().location();
         }
-        return pipelineFor(level, blockEntity).texture().location();
+
+        pendingOrigins.add(membership.groupOrigin());
+        return fallbackTexture().location();
     }
 
     public void tick(Level level) {
+        processPendingPipelines(level);
         pruneInvalid(level);
         for (ScreenPipeline pipeline : pipelines.values()) {
             pipeline.tick();
@@ -57,16 +71,36 @@ public final class ScreenTextureManager {
             pipeline.close();
         }
         pipelines.clear();
+        pendingOrigins.clear();
+        if (fallbackTexture != null) {
+            fallbackTexture.close();
+            fallbackTexture = null;
+        }
     }
 
-    private ScreenPipeline pipelineFor(Level level, LedScreenBlockEntity blockEntity) {
-        ScreenGroupMembership membership = blockEntity.getGroupMembership();
+    private void processPendingPipelines(Level level) {
+        if (pendingOrigins.isEmpty()) {
+            return;
+        }
+
+        Set<BlockPos> origins = Set.copyOf(pendingOrigins);
+        pendingOrigins.clear();
+
+        for (BlockPos origin : origins) {
+            BlockEntity blockEntity = level.getBlockEntity(origin);
+            if (blockEntity instanceof LedScreenBlockEntity led) {
+                ensurePipeline(level, led.getGroupMembership());
+            }
+        }
+    }
+
+    private void ensurePipeline(Level level, ScreenGroupMembership membership) {
         long key = membership.groupKey();
         VideoSourceDescriptor descriptor = resolveDescriptor(level, membership);
 
         ScreenPipeline existing = pipelines.get(key);
         if (existing != null && existing.matches(membership, descriptor)) {
-            return existing;
+            return;
         }
         if (existing != null) {
             existing.close();
@@ -74,7 +108,7 @@ public final class ScreenTextureManager {
 
         ScreenPipeline pipeline = createPipeline(membership, descriptor);
         pipelines.put(key, pipeline);
-        return pipeline;
+        pipeline.tick();
     }
 
     private static VideoSourceDescriptor resolveDescriptor(Level level, ScreenGroupMembership membership) {
@@ -89,9 +123,7 @@ public final class ScreenTextureManager {
         int[] size = computeTextureSize(membership.gridWidth(), membership.gridHeight());
         VideoSource source = ClientVideoSourceCatalog.INSTANCE.create(descriptor, size[0], size[1]);
         DynamicTextureHandle texture = new DynamicTextureHandle("group_" + membership.groupKey());
-        ScreenPipeline pipeline = new ScreenPipeline(membership, descriptor, source, texture);
-        pipeline.tick();
-        return pipeline;
+        return new ScreenPipeline(membership, descriptor, source, texture);
     }
 
     static int[] computeTextureSize(int gridWidth, int gridHeight) {
@@ -107,6 +139,13 @@ public final class ScreenTextureManager {
         }
 
         return new int[]{width, height};
+    }
+
+    private DynamicTextureHandle fallbackTexture() {
+        if (fallbackTexture == null) {
+            fallbackTexture = new DynamicTextureHandle("fallback");
+        }
+        return fallbackTexture;
     }
 
     private void pruneInvalid(Level level) {
@@ -159,7 +198,9 @@ public final class ScreenTextureManager {
         private void tick() {
             source.tick();
             VideoFrame frame = source.getCurrentFrame();
-            texture.upload(frame);
+            if (frame.getWidth() == source.getWidth() && frame.getHeight() == source.getHeight()) {
+                texture.upload(frame);
+            }
         }
 
         @Override

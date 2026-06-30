@@ -24,7 +24,7 @@ public final class ModConfig {
 
     public static final ForgeConfigSpec.BooleanValue ENABLE_NDI = BUILDER
             .comment("Enables NDI input via Devolay on the client.")
-            .define("enableNdi", false);
+            .define("enableNdi", true);
 
     public static final ForgeConfigSpec.ConfigValue<String> NDI_DEFAULT_SOURCE = BUILDER
             .comment("Default NDI source name for walls without an explicit sourceId (exact name from discovery).")

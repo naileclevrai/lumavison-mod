@@ -9,7 +9,9 @@
   "gui.lumavision.screen_config.apply": "Apply",
   "gui.lumavision.screen_config.merged_wall": "Merged wall %sx%s",
   "gui.lumavision.screen_config.provider_unavailable": "Provider not available",
+  "gui.lumavision.screen_config.provider_disabled": "Enable NDI in lumavision-common.toml",
   "gui.lumavision.screen_config.no_sources": "No sources found",
   "gui.lumavision.screen_config.coming_soon": "coming soon",
+  "gui.lumavision.screen_config.disabled": "disabled",
   "gui.lumavision.screen_config.unavailable": "unavailable"
 }
