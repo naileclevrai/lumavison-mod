@@ -50,6 +50,7 @@ repositories {
 
 dependencies {
     minecraft "net.minecraftforge:forge:${forge_version}"
+    implementation fg.deobf("me.walkerknapp:devolay:2.1.1:integrated")
 }
 
 tasks.named('processResources', ProcessResources).configure {
