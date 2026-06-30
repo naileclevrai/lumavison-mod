@@ -7,9 +7,9 @@ import net.minecraftforge.registries.DeferredRegister;
 import net.minecraftforge.registries.ForgeRegistries;
 
 /**
- * Registre central des blocs LumaVision (écrans LED, contrôleurs, etc.).
+ * Central registry for LumaVision blocks (LED screens, controllers, etc.).
  * <p>
- * Ajoutez de nouveaux blocs via {@code BLOCKS.register("nom", () -> new MonBloc(...))}.
+ * Add new blocks via {@code BLOCKS.register("name", () -> new MyBlock(...))}.
  */
 public final class ModBlocks {
 

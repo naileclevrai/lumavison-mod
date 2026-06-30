@@ -10,7 +10,7 @@ import net.minecraftforge.registries.DeferredRegister;
 import net.minecraftforge.registries.RegistryObject;
 
 /**
- * Onglet créatif dédié aux écrans et accessoires LumaVision.
+ * Creative tab dedicated to LumaVision screens and accessories.
  */
 public final class ModCreativeTabs {
 

@@ -14,10 +14,10 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 /**
- * Point d'entrée principal du mod LumaVision.
+ * Main entry point for the LumaVision mod.
  * <p>
- * Ce mod est dédié aux écrans LED et à la diffusion de contenu vidéo dans Minecraft.
- * Cette version ne contient que les fondations : enregistrements, configuration et hooks réseau.
+ * This mod is dedicated to LED screens and video content playback in Minecraft.
+ * This version contains only the foundations: registries, configuration, and network hooks.
  */
 @Mod(LumaVisionMod.MOD_ID)
 public final class LumaVisionMod {
@@ -27,7 +27,7 @@ public final class LumaVisionMod {
     public static final Logger LOGGER = LogManager.getLogger();
 
     public LumaVisionMod() {
-        LOGGER.info("Initialisation de LumaVision");
+        LOGGER.info("Initializing LumaVision");
 
         IEventBus modBus = FMLJavaModLoadingContext.get().getModEventBus();
 
@@ -38,5 +38,4 @@ public final class LumaVisionMod {
 
         ModLoadingContext.get().registerConfig(Type.COMMON, ModConfig.SPEC);
     }
-
 }

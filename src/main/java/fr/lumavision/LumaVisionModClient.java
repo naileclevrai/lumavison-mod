@@ -8,9 +8,9 @@ import net.minecraftforge.fml.event.lifecycle.FMLClientSetupEvent;
 import net.minecraftforge.fml.event.lifecycle.FMLCommonSetupEvent;
 
 /**
- * Initialisation côté client et commune.
+ * Client-side and common initialization.
  * <p>
- * Les renderers d'écrans LED et les textures dynamiques seront branchés ici ultérieurement.
+ * LED screen renderers and dynamic textures will be wired here later.
  */
 @Mod.EventBusSubscriber(modid = LumaVisionMod.MOD_ID, bus = Mod.EventBusSubscriber.Bus.MOD)
 public final class LumaVisionModClient {
@@ -30,7 +30,7 @@ public final class LumaVisionModClient {
 
         @SubscribeEvent
         public static void onClientSetup(final FMLClientSetupEvent event) {
-            LumaVisionMod.LOGGER.debug("Setup client LumaVision terminé");
+            LumaVisionMod.LOGGER.debug("LumaVision client setup complete");
         }
     }
 }

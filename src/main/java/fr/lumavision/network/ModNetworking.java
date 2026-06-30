@@ -3,9 +3,9 @@ package fr.lumavision.network;
 import fr.lumavision.LumaVisionMod;
 
 /**
- * Point d'entrée pour la synchronisation réseau (packets Forge).
+ * Entry point for network synchronization (Forge packets).
  * <p>
- * Les messages de contrôle vidéo, état des écrans et flux NDI seront enregistrés ici.
+ * Video control messages, screen state, and NDI streams will be registered here.
  */
 public final class ModNetworking {
 
@@ -15,10 +15,10 @@ public final class ModNetworking {
     }
 
     /**
-     * Enregistre les canaux et handlers réseau. Appelé pendant {@code FMLCommonSetupEvent}.
+     * Registers network channels and handlers. Called during {@code FMLCommonSetupEvent}.
      */
     public static void register() {
-        LumaVisionMod.LOGGER.debug("Réseau LumaVision prêt (protocole v{})", PROTOCOL_VERSION);
+        LumaVisionMod.LOGGER.debug("LumaVision networking ready (protocol v{})", PROTOCOL_VERSION);
         // SimpleChannel channel = NetworkRegistry.newSimpleChannel(...)
     }
 }

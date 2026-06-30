@@ -7,9 +7,9 @@ import net.minecraftforge.registries.DeferredRegister;
 import net.minecraftforge.registries.ForgeRegistries;
 
 /**
- * Registre central des block entities LumaVision.
+ * Central registry for LumaVision block entities.
  * <p>
- * Les écrans LED stockeront URL, source NDI, état de lecture, etc. dans leurs block entities.
+ * LED screens will store URL, NDI source, playback state, etc. in their block entities.
  */
 public final class ModBlockEntities {
 

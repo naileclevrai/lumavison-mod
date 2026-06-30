@@ -8,7 +8,7 @@ version = "${mod_version}"
 displayName = "${mod_name}"
 authors = "Nailec"
 description = '''
-Écrans LED et diffusion vidéo pour Minecraft — fondations du mod LumaVision.
+LED screens and video playback for Minecraft — LumaVision mod foundations.
 '''
 
 [[dependencies.${mod_id}]]

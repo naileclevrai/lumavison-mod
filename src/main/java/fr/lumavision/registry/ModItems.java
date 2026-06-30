@@ -7,9 +7,9 @@ import net.minecraftforge.registries.DeferredRegister;
 import net.minecraftforge.registries.ForgeRegistries;
 
 /**
- * Registre central des items LumaVision.
+ * Central registry for LumaVision items.
  * <p>
- * Les blocs placables utilisent généralement {@link net.minecraft.world.item.BlockItem}.
+ * Placeable blocks typically use {@link net.minecraft.world.item.BlockItem}.
  */
 public final class ModItems {
 

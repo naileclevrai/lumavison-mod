@@ -1,67 +1,67 @@
 # LumaVision
 
-Mod Minecraft **Forge 1.20.1** dédié aux écrans LED et à la diffusion de contenu vidéo dans le jeu.
+**Forge 1.20.1** Minecraft mod dedicated to LED screens and video content playback in-game.
 
-Indépendant de TheatricalExtraLights — ce dépôt pose les fondations pour une architecture évolutive.
+Independent from TheatricalExtraLights — this repository provides the foundation for an extensible architecture.
 
-## État actuel (v0.1.0)
+## Current status (v0.1.0)
 
-- Projet Gradle + Forge 47.3.0
+- Gradle project + Forge 47.3.0
 - Package `fr.lumavision`
-- Registres prêts : blocs, items, block entities, onglet créatif
-- Configuration commune (`lumavision-common.toml`)
-- Hook réseau préparé (sans packets pour l'instant)
+- Ready registries: blocks, items, block entities, creative tab
+- Common configuration (`lumavision-common.toml`)
+- Network hook prepared (no packets yet)
 
-**Aucune fonctionnalité vidéo** n'est implémentée à ce stade.
+**No video features** are implemented at this stage.
 
 ## Roadmap
 
-| Phase | Contenu |
+| Phase | Content |
 |-------|---------|
-| 1 | Écrans LED (blocs + block entities) |
-| 2 | Textures dynamiques et rendu client |
-| 3 | Lecture vidéo / images |
-| 4 | Support NDI (Devolay ou équivalent) |
-| 5 | Synchronisation réseau multi-joueur |
-| 6 | Optimisations de rendu |
+| 1 | LED screens (blocks + block entities) |
+| 2 | Dynamic textures and client rendering |
+| 3 | Video / image playback |
+| 4 | NDI support (Devolay or equivalent) |
+| 5 | Multiplayer network synchronization |
+| 6 | Rendering optimizations |
 
-## Prérequis
+## Requirements
 
 - **JDK 17**
-- Gradle (wrapper inclus)
+- Gradle (wrapper included)
 
-## Compilation
+## Build
 
 ```bash
 ./gradlew build
 ```
 
-Le JAR se trouve dans `build/libs/`.
+The JAR is output to `build/libs/`.
 
-## Développement
+## Development
 
 ```bash
 ./gradlew runClient
 ./gradlew runServer
 ```
 
-## Structure du code
+## Code structure
 
 ```
 src/main/java/fr/lumavision/
-├── LumaVisionMod.java          # Point d'entrée
-├── LumaVisionModClient.java    # Setup client + réseau
+├── LumaVisionMod.java          # Entry point
+├── LumaVisionModClient.java    # Client setup + networking
 ├── config/
-│   └── ModConfig.java          # Configuration Forge
+│   └── ModConfig.java          # Forge configuration
 ├── registry/
 │   ├── ModBlocks.java
 │   ├── ModItems.java
 │   ├── ModBlockEntities.java
 │   └── ModCreativeTabs.java
 └── network/
-    └── ModNetworking.java      # Packets (à venir)
+    └── ModNetworking.java      # Packets (coming soon)
 ```
 
-## Licence
+## License
 
 MIT
