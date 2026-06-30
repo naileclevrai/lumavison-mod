@@ -14,6 +14,8 @@ import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
 import org.jetbrains.annotations.Nullable;
 
+import org.jetbrains.annotations.Nullable;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -62,6 +64,15 @@ public final class NdiProvider implements VideoSourceProvider {
     }
 
     @Override
+    @Nullable
+    public String unavailableReason() {
+        if (isAvailable()) {
+            return null;
+        }
+        return NdiRuntime.getFailureReason();
+    }
+
+    @Override
     public boolean isImplemented() {
         return true;
     }
@@ -100,8 +111,8 @@ public final class NdiProvider implements VideoSourceProvider {
     }
 
     private static void ensureRuntime() {
-        if (!NdiRuntime.init()) {
-            LumaVisionMod.LOGGER.warn("NDI runtime is not available on this system");
+        if (!NdiRuntime.init() && NdiRuntime.getFailureReason() != null) {
+            LumaVisionMod.LOGGER.debug("NDI unavailable: {}", NdiRuntime.getFailureReason());
         }
     }
 

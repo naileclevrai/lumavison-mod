@@ -136,7 +136,7 @@ debugLogging = true                  # lists discovered sources in the log
 
 **Source resolution order:** wall `sourceId` → `ndiDefaultSource` → first discovered source (if `ndiAutoSelectFirst = true`) → test pattern.
 
-> NDI usage is subject to the [NDI SDK license terms](https://ndi.video). Devolay is Apache 2.0; native libraries are bundled via the `integrated` Maven artifact.
+> NDI usage is subject to the [NDI SDK license terms](https://ndi.video). Devolay is bundled via **jarJar** (`lumavision-*-all.jar`) and loaded through Forge's `minecraftLibrary` in development.
 
 ---
 

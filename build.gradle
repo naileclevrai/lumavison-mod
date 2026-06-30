@@ -14,6 +14,8 @@ base {
 
 java.toolchain.languageVersion = JavaLanguageVersion.of(17)
 
+jarJar.enable()
+
 minecraft {
     mappings channel: mapping_channel, version: mapping_version
 
@@ -50,7 +52,13 @@ repositories {
 
 dependencies {
     minecraft "net.minecraftforge:forge:${forge_version}"
-    implementation fg.deobf("me.walkerknapp:devolay:2.1.1:integrated")
+
+    // Devolay must use minecraftLibrary (dev classpath) + jarJar (production jar).
+    // Plain implementation is not visible to Forge's mod classloader at runtime.
+    minecraftLibrary "me.walkerknapp:devolay:2.1.1:integrated"
+    jarJar(group: "me.walkerknapp", name: "devolay", version: "[2.1,2.2)") {
+        jarJar.pin(it, "2.1.1")
+    }
 }
 
 tasks.named('processResources', ProcessResources).configure {

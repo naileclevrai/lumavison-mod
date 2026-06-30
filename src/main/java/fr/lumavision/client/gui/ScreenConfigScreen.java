@@ -168,7 +168,12 @@ public final class ScreenConfigScreen extends AbstractContainerScreen<ScreenConf
         }
 
         if (!selectedProvider.isAvailable()) {
-            statusMessage = Component.translatable("gui.lumavision.screen_config.provider_unavailable");
+            String reason = Component.translatable("gui.lumavision.screen_config.provider_unavailable").getString();
+            String detail = selectedProvider.unavailableReason();
+            if (detail != null && !detail.isBlank()) {
+                reason = detail;
+            }
+            statusMessage = Component.literal(reason);
             sourceList.setSources(List.of(), null);
             return;
         }

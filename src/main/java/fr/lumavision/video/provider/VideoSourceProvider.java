@@ -69,4 +69,12 @@ public interface VideoSourceProvider {
      */
     default void refreshSources() {
     }
+
+    /**
+     * Human-readable detail when {@link #isAvailable()} is false (for GUI status text).
+     */
+    @Nullable
+    default String unavailableReason() {
+        return null;
+    }
 }

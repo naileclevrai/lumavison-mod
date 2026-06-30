@@ -36,7 +36,10 @@ public final class NdiDiscoveryService {
     }
 
     public synchronized void start() {
-        if (running || !NdiRuntime.init()) {
+        if (!NdiRuntime.init()) {
+            return;
+        }
+        if (running && discoveryThread != null && discoveryThread.isAlive()) {
             return;
         }
         if (finder == null) {
