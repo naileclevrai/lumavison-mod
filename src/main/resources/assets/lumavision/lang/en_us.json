@@ -1,5 +1,15 @@
 {
   "itemGroup.lumavision": "LumaVision",
   "block.lumavision.led_screen": "LED Screen",
-  "item.lumavision.led_screen": "LED Screen"
+  "item.lumavision.led_screen": "LED Screen",
+  "menu.lumavision.screen_config": "LED Screen Configuration",
+  "gui.lumavision.screen_config.provider": "Provider",
+  "gui.lumavision.screen_config.sources": "Sources",
+  "gui.lumavision.screen_config.refresh": "Refresh",
+  "gui.lumavision.screen_config.apply": "Apply",
+  "gui.lumavision.screen_config.merged_wall": "Merged wall %sx%s",
+  "gui.lumavision.screen_config.provider_unavailable": "Provider not available",
+  "gui.lumavision.screen_config.no_sources": "No sources found",
+  "gui.lumavision.screen_config.coming_soon": "coming soon",
+  "gui.lumavision.screen_config.unavailable": "unavailable"
 }

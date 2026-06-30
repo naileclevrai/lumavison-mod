@@ -5,6 +5,7 @@ import fr.lumavision.registry.ModBlockEntities;
 import fr.lumavision.registry.ModBlocks;
 import fr.lumavision.registry.ModCreativeTabs;
 import fr.lumavision.registry.ModItems;
+import fr.lumavision.registry.ModMenuTypes;
 import net.minecraftforge.eventbus.api.IEventBus;
 import net.minecraftforge.fml.ModLoadingContext;
 import net.minecraftforge.fml.common.Mod;
@@ -34,6 +35,7 @@ public final class LumaVisionMod {
         ModBlocks.register(modBus);
         ModItems.register(modBus);
         ModBlockEntities.register(modBus);
+        ModMenuTypes.register(modBus);
         ModCreativeTabs.register(modBus);
 
         ModLoadingContext.get().registerConfig(Type.COMMON, ModConfig.SPEC);

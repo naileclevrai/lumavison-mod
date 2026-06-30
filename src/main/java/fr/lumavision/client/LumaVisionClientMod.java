@@ -1,9 +1,12 @@
 package fr.lumavision.client;
 
 import fr.lumavision.LumaVisionMod;
+import fr.lumavision.client.gui.ScreenConfigScreen;
 import fr.lumavision.client.render.ScreenRenderer;
 import fr.lumavision.client.video.catalog.ClientVideoSourceCatalog;
 import fr.lumavision.registry.ModBlockEntities;
+import fr.lumavision.registry.ModMenuTypes;
+import net.minecraft.client.gui.screens.MenuScreens;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.EntityRenderersEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
@@ -18,7 +21,10 @@ public final class LumaVisionClientMod {
 
     @SubscribeEvent
     public static void onClientSetup(FMLClientSetupEvent event) {
-        event.enqueueWork(ClientVideoSourceCatalog.INSTANCE::start);
+        event.enqueueWork(() -> {
+            ClientVideoSourceCatalog.INSTANCE.start();
+            MenuScreens.register(ModMenuTypes.SCREEN_CONFIG.get(), ScreenConfigScreen::new);
+        });
     }
 
     @SubscribeEvent

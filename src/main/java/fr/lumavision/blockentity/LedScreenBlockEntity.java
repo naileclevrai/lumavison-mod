@@ -64,6 +64,10 @@ public class LedScreenBlockEntity extends BlockEntity {
         return VideoSourceDescriptors.hasExplicitSource(sourceId);
     }
 
+    public BlockPos getGroupOrigin() {
+        return groupMembership.groupOrigin();
+    }
+
     @Override
     protected void saveAdditional(CompoundTag tag) {
         super.saveAdditional(tag);

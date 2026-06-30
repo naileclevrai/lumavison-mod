@@ -1,9 +1,18 @@
 package fr.lumavision.block;
 
 import fr.lumavision.blockentity.LedScreenBlockEntity;
+import fr.lumavision.client.gui.ScreenConfigMenu;
 import fr.lumavision.screen.ScreenGroupManager;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.InteractionResult;
+import net.minecraft.world.MenuProvider;
+import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
@@ -17,9 +26,11 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.block.state.properties.DirectionProperty;
+import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
+import net.minecraftforge.network.NetworkHooks;
 import org.jetbrains.annotations.Nullable;
 
 /**
@@ -90,6 +101,34 @@ public class LedScreenBlock extends BaseEntityBlock {
     @Override
     public BlockEntity newBlockEntity(BlockPos pos, BlockState state) {
         return new LedScreenBlockEntity(pos, state);
+    }
+
+    @Override
+    public InteractionResult use(BlockState state, Level level, BlockPos pos, Player player, InteractionHand hand, BlockHitResult hit) {
+        if (level.isClientSide()) {
+            return InteractionResult.SUCCESS;
+        }
+
+        BlockEntity blockEntity = level.getBlockEntity(pos);
+        if (!(blockEntity instanceof LedScreenBlockEntity screen)) {
+            return InteractionResult.PASS;
+        }
+
+        BlockPos groupOrigin = screen.getGroupOrigin();
+        MenuProvider menuProvider = new MenuProvider() {
+            @Override
+            public Component getDisplayName() {
+                return Component.translatable("menu.lumavision.screen_config");
+            }
+
+            @Override
+            public AbstractContainerMenu createMenu(int containerId, Inventory playerInventory, Player menuPlayer) {
+                return new ScreenConfigMenu(containerId, playerInventory, groupOrigin);
+            }
+        };
+
+        NetworkHooks.openScreen((ServerPlayer) player, menuProvider, buffer -> buffer.writeBlockPos(groupOrigin));
+        return InteractionResult.CONSUME;
     }
 
     @Override
