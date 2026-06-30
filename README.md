@@ -175,9 +175,47 @@ gradlew.bat runServer
 
 ## 🏛️ Architecture
 
+### Media server architecture
+
+LumaVision is designed as a **media server**, not an NDI-only mod. The configuration GUI and texture pipeline talk to a central catalog; individual backends are pluggable providers.
+
+```
+┌──────────────┐
+│  Screen GUI  │  (planned — never imports Devolay or concrete backends)
+└──────┬───────┘
+       │  list providers / sources / options
+       ▼
+┌──────────────────────┐
+│  VideoSourceCatalog  │  ClientVideoSourceCatalog
+└──────────┬───────────┘
+           │ aggregates
+     ┌─────┴─────┬─────────┬──────────┬─────────┐
+     ▼           ▼         ▼          ▼         ▼
+ NdiProvider  File…    Gif…     Browser…   TestPattern…
+     │           (stubs)                    (fallback)
+     ▼
+VideoSourceDescriptor
+     ▼
+ VideoSource → VideoFrame → DynamicTextureHandle → ScreenRenderer
+```
+
+| Layer | Package | Role |
+|-------|---------|------|
+| `VideoSourceProvider` | `fr.lumavision.video.provider` | Discovers sources, creates `VideoSource`, exposes GUI metadata |
+| `VideoSourceCatalog` | `fr.lumavision.video.provider` | Aggregates providers; resolves wall bindings |
+| `ClientVideoSourceCatalog` | `fr.lumavision.client.video.catalog` | Client registry of all providers |
+| `NdiProvider` | `fr.lumavision.client.ndi` | NDI discovery + Devolay capture |
+| `VideoSource` | `fr.lumavision.video` | Produces frames from any media backend |
+| `VideoFrame` | `fr.lumavision.video` | ARGB pixel buffer for a single frame |
+| `DynamicTextureHandle` | `fr.lumavision.client.texture` | Uploads frames to a Minecraft `DynamicTexture` |
+| `ScreenTextureManager` | `fr.lumavision.client.texture` | One pipeline per merged wall (tick, cleanup) |
+| `ScreenRenderer` | `fr.lumavision.client.render` | Draws the bezel + display quad in world space |
+
+**Registered providers (v0.1):** NDI (implemented), Test Pattern (fallback), File / GIF / Image / Browser / Webcam / Network / Spout / Syphon / Screen Capture (registered stubs for future work).
+
 ### Rendering pipeline
 
-The renderer is intentionally **decoupled** from content producers. Adding NDI, video files, or GIFs means implementing a new `VideoSource` — not rewriting the screen renderer.
+The renderer is intentionally **decoupled** from content producers. Adding MP4, GIF, or browser capture means implementing a `VideoSourceProvider` — not rewriting the screen renderer.
 
 ```
 ┌─────────────┐    ┌─────────────┐    ┌─────────────────────┐    ┌────────────────┐
@@ -185,23 +223,9 @@ The renderer is intentionally **decoupled** from content producers. Adding NDI, 
 └─────────────┘    └─────────────┘    └─────────────────────┘    └────────────────┘
        ▲                                                                    │
        │                                                                    ▼
-  Test pattern (fallback)
-  NDI via Devolay
-  Video file (future)
-  Static image (future)                                            LED Screen block
-                                                                   (BlockEntityRenderer)
+  VideoSourceCatalog                                              LED Screen block
+  └── NdiProvider, FileProvider, …                                 (BlockEntityRenderer)
 ```
-
-| Layer | Package | Role |
-|-------|---------|------|
-| `VideoSource` | `fr.lumavision.video` | Produces frames from any media backend |
-| `VideoFrame` | `fr.lumavision.video` | ARGB pixel buffer for a single frame |
-| `DynamicTextureHandle` | `fr.lumavision.client.texture` | Uploads frames to a Minecraft `DynamicTexture` |
-| `ClientVideoSourceFactory` | `fr.lumavision.client.video` | Creates `VideoSource` from descriptors |
-| `NdiDiscoveryService` | `fr.lumavision.client.ndi` | Background NDI source finder |
-| `NdiVideoSource` | `fr.lumavision.client.ndi` | Devolay receiver → `VideoFrame` |
-| `ScreenTextureManager` | `fr.lumavision.client.texture` | One pipeline per merged wall (tick, cleanup) |
-| `ScreenRenderer` | `fr.lumavision.client.render` | Draws the bezel + display quad in world space |
 
 ### Project layout
 
@@ -227,16 +251,19 @@ lumavison-mod/
     │   │   ├── VideoSource.java
     │   │   ├── VideoSourceDescriptor.java
     │   │   ├── VideoSourceFactory.java
-    │   │   └── VideoFrame.java
+    │   │   ├── VideoFrame.java
+    │   │   └── provider/                   # VideoSourceProvider + VideoSourceCatalog
     │   │
     │   ├── client/
     │   │   ├── LumaVisionClientMod.java
     │   │   ├── ndi/
+    │   │   │   ├── NdiProvider.java
     │   │   │   ├── NdiDiscoveryService.java
-    │   │   │   ├── NdiVideoSource.java
-    │   │   │   └── NdiSourceResolver.java
+    │   │   │   └── NdiVideoSource.java
     │   │   ├── video/
-    │   │   │   ├── ClientVideoSourceFactory.java
+    │   │   │   ├── catalog/
+    │   │   │   │   └── ClientVideoSourceCatalog.java
+    │   │   │   ├── provider/               # Per-backend providers (+ stubs)
     │   │   │   └── TestPatternVideoSource.java
     │   │   ├── texture/
     │   │   │   ├── DynamicTextureHandle.java
@@ -301,7 +328,7 @@ Contributions are welcome — whether it's code, bug reports, design feedback, o
 
 ### Guidelines
 
-- Keep the **video pipeline abstraction** intact — new media types implement `VideoSource`, not renderer hacks.
+- Keep the **video pipeline abstraction** intact — new media types implement `VideoSourceProvider`, not renderer hacks.
 - Prefer **small, focused PRs** over large rewrites.
 - Write code and comments in **English**.
 - Target **Java 17** and **Forge 1.20.1** APIs.
