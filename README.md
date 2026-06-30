@@ -108,7 +108,18 @@ LumaVision is designed around a **source-agnostic** renderer. Future `VideoSourc
 
 ### In-game
 
-Open the **LumaVision** creative tab and place **LED Screen** blocks. By default, walls show a test pattern. Enable NDI in config to display live network video (see below).
+Open the **LumaVision** creative tab and place **LED Screen** blocks. **Right-click** any screen to open the configuration GUI and choose a media provider and source. By default, walls show a test pattern until a source is applied.
+
+### Screen configuration (in-game)
+
+1. Place one or more **LED Screen** blocks (adjacent panels merge into one logical wall).
+2. **Right-click** any panel in the wall.
+3. Choose a **Provider** (NDI, Test Pattern, …).
+4. Select a **Source** from the list and click **Apply**.
+
+The binding is stored on the wall's **group origin** block and persists across saves. Merged walls share one source — configuring any panel configures the entire wall.
+
+The GUI reads exclusively from `VideoSourceCatalog` — no direct NDI or Devolay imports — so new providers (MP4, GIF, browser, …) appear automatically once implemented.
 
 ### NDI setup
 
@@ -121,7 +132,7 @@ ndiDefaultSource = "YOUR-PC (OBS)"   # exact name from discovery logs
 debugLogging = true                  # lists discovered sources in the log
 ```
 
-3. **Per-wall override (optional):** set the origin block's `sourceId` to `ndi:YOUR-PC (OBS)` via NBT or a future config tool.
+3. **Per-wall override:** use the in-game GUI, or set the origin block's `sourceId` to `ndi:YOUR-PC (OBS)` via NBT.
 
 **Source resolution order:** wall `sourceId` → `ndiDefaultSource` → first discovered source (if `ndiAutoSelectFirst = true`) → test pattern.
 
@@ -181,7 +192,7 @@ LumaVision is designed as a **media server**, not an NDI-only mod. The configura
 
 ```
 ┌──────────────┐
-│  Screen GUI  │  (planned — never imports Devolay or concrete backends)
+│  ScreenConfigScreen  │  catalog-only; no backend imports
 └──────┬───────┘
        │  list providers / sources / options
        ▼
@@ -208,6 +219,8 @@ VideoSourceDescriptor
 | `VideoSource` | `fr.lumavision.video` | Produces frames from any media backend |
 | `VideoFrame` | `fr.lumavision.video` | ARGB pixel buffer for a single frame |
 | `DynamicTextureHandle` | `fr.lumavision.client.texture` | Uploads frames to a Minecraft `DynamicTexture` |
+| `ScreenConfigScreen` | `fr.lumavision.client.gui` | In-game provider/source picker (catalog-only) |
+| `SetScreenSourcePacket` | `fr.lumavision.network` | Server-side `sourceId` persistence |
 | `ScreenTextureManager` | `fr.lumavision.client.texture` | One pipeline per merged wall (tick, cleanup) |
 | `ScreenRenderer` | `fr.lumavision.client.render` | Draws the bezel + display quad in world space |
 
@@ -265,6 +278,10 @@ lumavison-mod/
     │   │   │   │   └── ClientVideoSourceCatalog.java
     │   │   │   ├── provider/               # Per-backend providers (+ stubs)
     │   │   │   └── TestPatternVideoSource.java
+    │   │   ├── gui/
+    │   │   │   ├── ScreenConfigMenu.java
+    │   │   │   ├── ScreenConfigScreen.java
+    │   │   │   └── SourceSelectionList.java
     │   │   ├── texture/
     │   │   │   ├── DynamicTextureHandle.java
     │   │   │   └── ScreenTextureManager.java
@@ -278,10 +295,12 @@ lumavison-mod/
     │   │   ├── ModBlocks.java
     │   │   ├── ModItems.java
     │   │   ├── ModBlockEntities.java
+    │   │   ├── ModMenuTypes.java
     │   │   └── ModCreativeTabs.java
     │   │
     │   └── network/
-    │       └── ModNetworking.java          # Future packet layer
+    │       ├── ModNetworking.java
+    │       └── SetScreenSourcePacket.java
     │
     └── resources/
         ├── META-INF/mods.toml
