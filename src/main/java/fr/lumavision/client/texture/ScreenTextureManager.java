@@ -1,8 +1,7 @@
 package fr.lumavision.client.texture;
 
 import fr.lumavision.blockentity.LedScreenBlockEntity;
-import fr.lumavision.client.ndi.NdiSourceResolver;
-import fr.lumavision.client.video.ClientVideoSourceFactory;
+import fr.lumavision.client.video.catalog.ClientVideoSourceCatalog;
 import fr.lumavision.config.ModConfig;
 import fr.lumavision.screen.ScreenGroupMembership;
 import fr.lumavision.video.VideoFrame;
@@ -81,14 +80,14 @@ public final class ScreenTextureManager {
     private static VideoSourceDescriptor resolveDescriptor(Level level, ScreenGroupMembership membership) {
         BlockEntity blockEntity = level.getBlockEntity(membership.groupOrigin());
         if (blockEntity instanceof LedScreenBlockEntity origin) {
-            return NdiSourceResolver.resolve(origin);
+            return ClientVideoSourceCatalog.INSTANCE.resolve(origin);
         }
         return VideoSourceDescriptor.testPattern();
     }
 
     private static ScreenPipeline createPipeline(ScreenGroupMembership membership, VideoSourceDescriptor descriptor) {
         int[] size = computeTextureSize(membership.gridWidth(), membership.gridHeight());
-        VideoSource source = ClientVideoSourceFactory.INSTANCE.create(descriptor, size[0], size[1]);
+        VideoSource source = ClientVideoSourceCatalog.INSTANCE.create(descriptor, size[0], size[1]);
         DynamicTextureHandle texture = new DynamicTextureHandle("group_" + membership.groupKey());
         ScreenPipeline pipeline = new ScreenPipeline(membership, descriptor, source, texture);
         pipeline.tick();

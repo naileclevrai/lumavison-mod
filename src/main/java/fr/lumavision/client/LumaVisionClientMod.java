@@ -1,10 +1,8 @@
 package fr.lumavision.client;
 
 import fr.lumavision.LumaVisionMod;
-import fr.lumavision.client.ndi.NdiDiscoveryService;
-import fr.lumavision.client.ndi.NdiRuntime;
 import fr.lumavision.client.render.ScreenRenderer;
-import fr.lumavision.config.ModConfig;
+import fr.lumavision.client.video.catalog.ClientVideoSourceCatalog;
 import fr.lumavision.registry.ModBlockEntities;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.EntityRenderersEvent;
@@ -20,11 +18,7 @@ public final class LumaVisionClientMod {
 
     @SubscribeEvent
     public static void onClientSetup(FMLClientSetupEvent event) {
-        event.enqueueWork(() -> {
-            if (ModConfig.ENABLE_NDI.get() && NdiRuntime.init()) {
-                NdiDiscoveryService.getInstance().start();
-            }
-        });
+        event.enqueueWork(ClientVideoSourceCatalog.INSTANCE::start);
     }
 
     @SubscribeEvent
