@@ -1,6 +1,7 @@
 package fr.lumavision.blockentity;
 
 import fr.lumavision.registry.ModBlockEntities;
+import fr.lumavision.screen.ScreenGroupMembership;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
@@ -15,19 +16,30 @@ import org.jetbrains.annotations.Nullable;
  * Server-authoritative state for a single LED screen block.
  * <p>
  * Pixel content is produced client-side via {@link fr.lumavision.video.VideoSource};
- * this entity will later hold source configuration (URL, NDI name, crop, etc.).
+ * group membership defines which portion of the shared wall texture this block displays.
  */
 public class LedScreenBlockEntity extends BlockEntity {
 
     /** Reserved for future source binding (file path, NDI id, URL, …). */
     private String sourceId = "";
+    private ScreenGroupMembership groupMembership;
 
     public LedScreenBlockEntity(BlockPos pos, BlockState state) {
         super(ModBlockEntities.LED_SCREEN.get(), pos, state);
+        this.groupMembership = ScreenGroupMembership.solo(pos);
     }
 
     public Direction getFacing() {
         return getBlockState().getValue(fr.lumavision.block.LedScreenBlock.FACING);
+    }
+
+    public ScreenGroupMembership getGroupMembership() {
+        return groupMembership;
+    }
+
+    public void setGroupMembership(ScreenGroupMembership membership) {
+        this.groupMembership = membership;
+        setChanged();
     }
 
     public String getSourceId() {
@@ -43,12 +55,14 @@ public class LedScreenBlockEntity extends BlockEntity {
     protected void saveAdditional(CompoundTag tag) {
         super.saveAdditional(tag);
         tag.putString("SourceId", sourceId);
+        groupMembership.write(tag);
     }
 
     @Override
     public void load(CompoundTag tag) {
         super.load(tag);
         sourceId = tag.getString("SourceId");
+        groupMembership = ScreenGroupMembership.read(tag, worldPosition);
     }
 
     @Override

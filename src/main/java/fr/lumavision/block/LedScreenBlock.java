@@ -1,10 +1,12 @@
 package fr.lumavision.block;
 
 import fr.lumavision.blockentity.LedScreenBlockEntity;
+import fr.lumavision.screen.ScreenGroupManager;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.BlockGetter;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.BaseEntityBlock;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Mirror;
@@ -88,5 +90,21 @@ public class LedScreenBlock extends BaseEntityBlock {
     @Override
     public BlockEntity newBlockEntity(BlockPos pos, BlockState state) {
         return new LedScreenBlockEntity(pos, state);
+    }
+
+    @Override
+    public void onPlace(BlockState state, Level level, BlockPos pos, BlockState oldState, boolean isMoving) {
+        super.onPlace(state, level, pos, oldState, isMoving);
+        if (!level.isClientSide()) {
+            ScreenGroupManager.rebuildAround(level, pos);
+        }
+    }
+
+    @Override
+    public void onRemove(BlockState state, Level level, BlockPos pos, BlockState newState, boolean isMoving) {
+        if (!level.isClientSide() && !state.is(newState.getBlock())) {
+            ScreenGroupManager.rebuildAround(level, pos);
+        }
+        super.onRemove(state, level, pos, newState, isMoving);
     }
 }
