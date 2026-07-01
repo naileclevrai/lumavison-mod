@@ -2,6 +2,7 @@ package fr.lumavision.registry;
 
 import fr.lumavision.LumaVisionMod;
 import fr.lumavision.client.gui.ScreenConfigMenu;
+import fr.lumavision.menu.CameraConfigMenu;
 import net.minecraft.world.inventory.MenuType;
 import net.minecraftforge.common.extensions.IForgeMenuType;
 import net.minecraftforge.eventbus.api.IEventBus;
@@ -16,6 +17,9 @@ public final class ModMenuTypes {
 
     public static final RegistryObject<MenuType<ScreenConfigMenu>> SCREEN_CONFIG =
             MENUS.register("screen_config", () -> IForgeMenuType.create(ScreenConfigMenu::new));
+
+    public static final RegistryObject<MenuType<CameraConfigMenu>> CAMERA_CONFIG =
+            MENUS.register("camera_config", () -> IForgeMenuType.create(CameraConfigMenu::new));
 
     private ModMenuTypes() {
     }

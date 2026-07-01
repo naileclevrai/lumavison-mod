@@ -1,0 +1,6 @@
+{
+  "parent": "block/cube_all",
+  "textures": {
+    "all": "lumavision:block/led_screen_frame"
+  }
+}

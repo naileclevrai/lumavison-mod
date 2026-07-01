@@ -1,6 +1,7 @@
 package fr.lumavision.registry;
 
 import fr.lumavision.LumaVisionMod;
+import fr.lumavision.block.CameraBlock;
 import fr.lumavision.block.LedScreenBlock;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.SoundType;
@@ -29,6 +30,13 @@ public final class ModBlocks {
                     .noOcclusion()
                     .isViewBlocking((blockState, level, pos) -> false)
                     .isSuffocating((blockState, level, pos) -> false)));
+
+    public static final RegistryObject<CameraBlock> CAMERA = BLOCKS.register("camera",
+            () -> new CameraBlock(BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.METAL)
+                    .strength(1.5F, 6.0F)
+                    .sound(SoundType.METAL)
+                    .noOcclusion()));
 
     private ModBlocks() {
     }

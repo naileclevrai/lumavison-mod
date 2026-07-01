@@ -1,6 +1,7 @@
 package fr.lumavision.client;
 
 import fr.lumavision.LumaVisionMod;
+import fr.lumavision.client.gui.CameraConfigScreen;
 import fr.lumavision.client.gui.ScreenConfigScreen;
 import fr.lumavision.client.render.ScreenRenderer;
 import fr.lumavision.client.video.catalog.ClientVideoSourceCatalog;
@@ -24,6 +25,7 @@ public final class LumaVisionClientMod {
         event.enqueueWork(() -> {
             ClientVideoSourceCatalog.INSTANCE.start();
             MenuScreens.register(ModMenuTypes.SCREEN_CONFIG.get(), ScreenConfigScreen::new);
+            MenuScreens.register(ModMenuTypes.CAMERA_CONFIG.get(), CameraConfigScreen::new);
         });
     }
 

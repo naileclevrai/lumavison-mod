@@ -22,6 +22,9 @@ public final class ModItems {
     public static final RegistryObject<Item> LED_SCREEN = ITEMS.register("led_screen",
             () -> new BlockItem(ModBlocks.LED_SCREEN.get(), new Item.Properties()));
 
+    public static final RegistryObject<Item> CAMERA = ITEMS.register("camera",
+            () -> new BlockItem(ModBlocks.CAMERA.get(), new Item.Properties()));
+
     private ModItems() {
     }
 

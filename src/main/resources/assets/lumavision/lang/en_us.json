@@ -35,5 +35,18 @@
   "gui.lumavision.screen_config.badge_live": "● Live",
   "gui.lumavision.screen_config.badge_soon": "○ Soon",
   "gui.lumavision.screen_config.badge_disabled": "○ Disabled",
-  "gui.lumavision.screen_config.badge_unavailable": "○ Unavailable"
+  "gui.lumavision.screen_config.badge_unavailable": "○ Unavailable",
+  "block.lumavision.camera": "NDI Camera",
+  "item.lumavision.camera": "NDI Camera",
+  "menu.lumavision.camera_config": "Camera Configuration",
+  "gui.lumavision.camera_config.ndi_name": "NDI SOURCE NAME",
+  "gui.lumavision.camera_config.res_fps_fov": "WIDTH   HEIGHT   FPS   FOV",
+  "gui.lumavision.camera_config.dmx_universe": "DMX UNIVERSE",
+  "gui.lumavision.camera_config.dmx_channels": "DMX CHANNELS  (pan  tilt  zoom  track  enable)",
+  "gui.lumavision.camera_config.enabled": "Enabled: %s",
+  "gui.lumavision.camera_config.sixteen_bit": "16-bit DMX: %s",
+  "gui.lumavision.camera_config.on": "On",
+  "gui.lumavision.camera_config.off": "Off",
+  "gui.lumavision.camera_config.apply": "Apply",
+  "gui.lumavision.camera_config.cancel": "Cancel"
 }

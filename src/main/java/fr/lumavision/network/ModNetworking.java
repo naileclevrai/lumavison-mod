@@ -42,6 +42,13 @@ public final class ModNetworking {
                 SetScreenDisplayPacket::decode,
                 SetScreenDisplayPacket::handle
         );
+        CHANNEL.registerMessage(
+                nextPacketId++,
+                ConfigureCameraPacket.class,
+                ConfigureCameraPacket::encode,
+                ConfigureCameraPacket::decode,
+                ConfigureCameraPacket::handle
+        );
         LumaVisionMod.LOGGER.debug("LumaVision networking ready (protocol v{})", PROTOCOL_VERSION);
     }
 }
