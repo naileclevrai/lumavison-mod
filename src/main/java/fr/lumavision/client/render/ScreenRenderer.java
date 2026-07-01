@@ -31,6 +31,10 @@ public final class ScreenRenderer implements BlockEntityRenderer<LedScreenBlockE
     @Override
     public void render(LedScreenBlockEntity blockEntity, float partialTick, PoseStack poseStack,
                        MultiBufferSource bufferSource, int packedLight, int packedOverlay) {
+        if (!blockEntity.isGroupOrigin()) {
+            return;
+        }
+
         BlockState state = blockEntity.getBlockState();
         Direction facing = state.getValue(LedScreenBlock.FACING);
         ScreenGroupMembership group = blockEntity.getGroupMembership();
@@ -58,7 +62,8 @@ public final class ScreenRenderer implements BlockEntityRenderer<LedScreenBlockE
             vertexColor = DisplayColorGrading.vertexColor(settings);
         }
 
-        DisplayUvMapper.MappedUv mapped = DisplayUvMapper.map(group, settings, frameWidth, frameHeight);
+        float quadY1 = facing == Direction.DOWN ? -group.gridHeight() : group.gridHeight();
+        DisplayUvMapper.MappedUv mapped = DisplayUvMapper.mapWall(group, settings, frameWidth, frameHeight, quadY1);
         VertexConsumer consumer = bufferSource.getBuffer(RenderType.entityCutoutNoCull(screenTexture));
         drawFacingQuad(consumer, poseStack.last(), facing,
                 mapped.quadX0(), mapped.quadY0(), mapped.quadX1(), mapped.quadY1(), FACE_EPSILON,
@@ -127,7 +132,7 @@ public final class ScreenRenderer implements BlockEntityRenderer<LedScreenBlockE
 
     @Override
     public boolean shouldRenderOffScreen(LedScreenBlockEntity blockEntity) {
-        return false;
+        return blockEntity.isGroupOrigin();
     }
 
     @Override

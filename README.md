@@ -323,6 +323,7 @@ config/lumavision-common.toml
 | Option | Default | Description |
 |--------|---------|-------------|
 | `debugLogging` | `false` | Verbose logs (textures, NDI discovery, rendering) |
+| `minTextureResolution` | `768` | Minimum longest side for close/high-quality dynamic screen textures |
 | `maxTextureResolution` | `1024` | Max longest side for dynamic screen textures (64–4096) |
 | `enableNdi` | `false` | Enable NDI input on the client |
 | `ndiDefaultSource` | `""` | Global fallback NDI source name |
@@ -331,6 +332,12 @@ config/lumavision-common.toml
 | `ndiDiscoveryIntervalMs` | `2000` | NDI network scan interval (ms) |
 | `baseCellResolution` | `96` | Pixels per LED block before max resolution cap |
 | `maxTextureUpdatesPerSecond` | `20` | Max GPU texture uploads per second per wall (0 = unlimited) |
+| `maxNdiCaptureFramesPerSecond` | `30` | Max NDI frames converted per second per active wall (0 = unlimited) |
+| `enableDynamicLod` | `true` | Lower video texture resolution automatically for distant LED walls |
+| `midTextureResolution` | `512` | Minimum longest-side texture resolution for medium-distance LED walls |
+| `farTextureResolution` | `256` | Minimum longest-side texture resolution for far LED walls |
+| `lodNearDistance` | `24` | Distance in blocks where LED walls use close/high quality |
+| `lodMidDistance` | `48` | Distance in blocks where LED walls switch from medium to far quality |
 
 ---
 

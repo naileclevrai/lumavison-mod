@@ -14,7 +14,10 @@ import java.nio.ByteBuffer;
 @OnlyIn(Dist.CLIENT)
 public final class NdiFrameConverter {
 
-    private VideoFrame output;
+    private static final int BUFFER_COUNT = 3;
+
+    private final VideoFrame[] outputs = new VideoFrame[BUFFER_COUNT];
+    private int nextBufferIndex;
 
     public VideoFrame convert(DevolayVideoFrame ndiFrame, int targetWidth, int targetHeight) {
         int sourceWidth = ndiFrame.getXResolution();
@@ -42,8 +45,12 @@ public final class NdiFrameConverter {
     }
 
     private VideoFrame ensureOutput(int width, int height) {
+        int index = nextBufferIndex;
+        nextBufferIndex = (nextBufferIndex + 1) % BUFFER_COUNT;
+        VideoFrame output = outputs[index];
         if (output == null || output.getWidth() != width || output.getHeight() != height) {
             output = new VideoFrame(width, height);
+            outputs[index] = output;
         }
         return output;
     }

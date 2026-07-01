@@ -22,6 +22,10 @@ public final class ModConfig {
             .comment("Maximum resolution (longest side) for LED screen dynamic textures.")
             .defineInRange("maxTextureResolution", 1024, 64, 4096);
 
+    public static final ForgeConfigSpec.IntValue MIN_TEXTURE_RESOLUTION = BUILDER
+            .comment("Minimum resolution (longest side) for LED screen dynamic textures. Raises quality on small walls.")
+            .defineInRange("minTextureResolution", 768, 64, 4096);
+
     public static final ForgeConfigSpec.IntValue BASE_CELL_RESOLUTION = BUILDER
             .comment("Pixels per LED block before the maxTextureResolution cap. Lower = better FPS, softer image.")
             .defineInRange("baseCellResolution", 96, 32, 256);
@@ -29,6 +33,30 @@ public final class ModConfig {
     public static final ForgeConfigSpec.IntValue MAX_TEXTURE_UPDATES_PER_SECOND = BUILDER
             .comment("Maximum GPU texture uploads per second per LED wall (0 = unlimited). Lower values reduce CPU/GPU load near screens.")
             .defineInRange("maxTextureUpdatesPerSecond", 20, 0, 60);
+
+    public static final ForgeConfigSpec.IntValue MAX_NDI_CAPTURE_FRAMES_PER_SECOND = BUILDER
+            .comment("Maximum NDI frames converted per second per active wall (0 = unlimited).")
+            .defineInRange("maxNdiCaptureFramesPerSecond", 30, 0, 60);
+
+    public static final ForgeConfigSpec.BooleanValue ENABLE_DYNAMIC_LOD = BUILDER
+            .comment("Automatically lowers video texture resolution for distant LED walls.")
+            .define("enableDynamicLod", true);
+
+    public static final ForgeConfigSpec.IntValue MID_TEXTURE_RESOLUTION = BUILDER
+            .comment("Minimum longest-side texture resolution for medium-distance LED walls.")
+            .defineInRange("midTextureResolution", 512, 64, 4096);
+
+    public static final ForgeConfigSpec.IntValue FAR_TEXTURE_RESOLUTION = BUILDER
+            .comment("Minimum longest-side texture resolution for far LED walls.")
+            .defineInRange("farTextureResolution", 256, 64, 4096);
+
+    public static final ForgeConfigSpec.IntValue LOD_NEAR_DISTANCE = BUILDER
+            .comment("Distance in blocks where LED walls use the close/high quality resolution.")
+            .defineInRange("lodNearDistance", 24, 1, 512);
+
+    public static final ForgeConfigSpec.IntValue LOD_MID_DISTANCE = BUILDER
+            .comment("Distance in blocks where LED walls switch from medium to far quality.")
+            .defineInRange("lodMidDistance", 48, 1, 512);
 
     public static final ForgeConfigSpec.BooleanValue ENABLE_NDI = BUILDER
             .comment("Enables NDI input via Devolay on the client.")

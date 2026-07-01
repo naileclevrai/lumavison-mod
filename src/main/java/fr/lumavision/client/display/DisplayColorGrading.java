@@ -51,6 +51,7 @@ public final class DisplayColorGrading {
                         | toByte(b));
             }
         }
+        target.markDirty();
     }
 
     public static int[] vertexColor(ScreenDisplaySettings settings) {

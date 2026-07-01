@@ -64,5 +64,6 @@ public final class TestPatternVideoSource implements VideoSource {
                 frame.setArgb(x, y, 0xFF000000 | (red << 16) | (green << 8) | blue);
             }
         }
+        frame.markDirty();
     }
 }

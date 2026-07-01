@@ -42,6 +42,12 @@ public final class ScreenTextureManager {
 
     private static final ScreenTextureManager INSTANCE = new ScreenTextureManager();
 
+    private enum QualityTier {
+        NEAR,
+        MID,
+        FAR
+    }
+
     private final Map<Long, ScreenPipeline> pipelines = new HashMap<>();
     private final Set<BlockPos> pendingOrigins = new HashSet<>();
     private DynamicTextureHandle fallbackTexture;
@@ -94,7 +100,7 @@ public final class ScreenTextureManager {
             if (playerPos != null && !pipeline.isWithinTickRange(playerPos)) {
                 continue;
             }
-            pipeline.tick(level);
+            pipeline.tick(level, playerPos);
         }
     }
 
@@ -146,7 +152,7 @@ public final class ScreenTextureManager {
 
         ScreenPipeline pipeline = createPipeline(membership, descriptor);
         pipelines.put(key, pipeline);
-        pipeline.tick(level);
+        pipeline.tick(level, playerPosition());
     }
 
     private static VideoSourceDescriptor resolveDescriptor(Level level, ScreenGroupMembership membership) {
@@ -158,18 +164,30 @@ public final class ScreenTextureManager {
     }
 
     private static ScreenPipeline createPipeline(ScreenGroupMembership membership, VideoSourceDescriptor descriptor) {
-        int[] size = computeTextureSize(membership.gridWidth(), membership.gridHeight());
+        int[] size = computeTextureSize(membership.gridWidth(), membership.gridHeight(), QualityTier.NEAR);
         VideoSource source = ClientVideoSourceCatalog.INSTANCE.create(descriptor, size[0], size[1]);
         DynamicTextureHandle texture = new DynamicTextureHandle("group_" + membership.groupKey());
-        return new ScreenPipeline(membership, descriptor, source, texture);
+        return new ScreenPipeline(membership, descriptor, source, texture, QualityTier.NEAR);
     }
 
     static int[] computeTextureSize(int gridWidth, int gridHeight) {
+        return computeTextureSize(gridWidth, gridHeight, QualityTier.NEAR);
+    }
+
+    private static int[] computeTextureSize(int gridWidth, int gridHeight, QualityTier qualityTier) {
         int cellResolution = ModConfig.BASE_CELL_RESOLUTION.get();
         int width = cellResolution * gridWidth;
         int height = cellResolution * gridHeight;
         int maxResolution = ModConfig.MAX_TEXTURE_RESOLUTION.get();
+        int minResolution = Math.min(minResolutionForTier(qualityTier), maxResolution);
         int longest = Math.max(width, height);
+
+        if (longest < minResolution) {
+            float scale = minResolution / (float) longest;
+            width = Math.round(width * scale);
+            height = Math.round(height * scale);
+            longest = Math.max(width, height);
+        }
 
         if (longest > maxResolution) {
             float scale = maxResolution / (float) longest;
@@ -178,6 +196,17 @@ public final class ScreenTextureManager {
         }
 
         return new int[]{width, height};
+    }
+
+    private static int minResolutionForTier(QualityTier qualityTier) {
+        if (!ModConfig.ENABLE_DYNAMIC_LOD.get()) {
+            return ModConfig.MIN_TEXTURE_RESOLUTION.get();
+        }
+        return switch (qualityTier) {
+            case NEAR -> ModConfig.MIN_TEXTURE_RESOLUTION.get();
+            case MID -> Math.min(ModConfig.MID_TEXTURE_RESOLUTION.get(), ModConfig.MIN_TEXTURE_RESOLUTION.get());
+            case FAR -> Math.min(ModConfig.FAR_TEXTURE_RESOLUTION.get(), ModConfig.MID_TEXTURE_RESOLUTION.get());
+        };
     }
 
     private DynamicTextureHandle fallbackTexture() {
@@ -213,24 +242,29 @@ public final class ScreenTextureManager {
     private static final class ScreenPipeline implements AutoCloseable {
         private final ScreenGroupMembership membership;
         private final VideoSourceDescriptor descriptor;
-        private final VideoSource source;
+        private VideoSource source;
         private final DynamicTextureHandle texture;
+        private QualityTier qualityTier;
         private VideoFrame gradedFrame;
 
         private int lastFrameWidth;
         private int lastFrameHeight;
         private String displayCacheKey = ScreenDisplaySettings.DEFAULT.cacheKey();
         private int lastUploadedContentHash;
+        private VideoFrame lastUploadedFrame;
+        private long lastUploadedFrameRevision = -1L;
+        private String lastUploadedDisplayKey = "";
         private long lastUploadMs;
         private WallRenderContext renderContext;
         private String lastRenderContextKey = "";
 
         private ScreenPipeline(ScreenGroupMembership membership, VideoSourceDescriptor descriptor,
-                               VideoSource source, DynamicTextureHandle texture) {
+                               VideoSource source, DynamicTextureHandle texture, QualityTier qualityTier) {
             this.membership = membership;
             this.descriptor = descriptor;
             this.source = source;
             this.texture = texture;
+            this.qualityTier = qualityTier;
             this.gradedFrame = new VideoFrame(source.getWidth(), source.getHeight());
         }
 
@@ -282,7 +316,9 @@ public final class ScreenTextureManager {
             return dx * dx + dy * dy + dz * dz <= maxDist * maxDist;
         }
 
-        private void tick(Level level) {
+        private void tick(Level level, Vec3 playerPos) {
+            updateQualityTierIfNeeded(playerPos);
+
             ScreenDisplaySettings displaySettings = LedScreenBlockEntity.resolveDisplaySettings(level, membership);
             displayCacheKey = displaySettings.cacheKey();
 
@@ -296,11 +332,6 @@ public final class ScreenTextureManager {
                 return;
             }
 
-            int contentHash = computeUploadContentHash(frame, displaySettings);
-            if (contentHash == lastUploadedContentHash) {
-                return;
-            }
-
             long nowMs = System.currentTimeMillis();
             int maxUploadsPerSecond = ModConfig.MAX_TEXTURE_UPDATES_PER_SECOND.get();
             if (maxUploadsPerSecond > 0 && lastUploadMs > 0) {
@@ -308,6 +339,21 @@ public final class ScreenTextureManager {
                 if (nowMs - lastUploadMs < minIntervalMs) {
                     return;
                 }
+            }
+
+            long frameRevision = frame.getRevision();
+            if (frame == lastUploadedFrame
+                    && frameRevision == lastUploadedFrameRevision
+                    && displayCacheKey.equals(lastUploadedDisplayKey)) {
+                return;
+            }
+
+            int contentHash = computeUploadContentHash(frame, displaySettings);
+            if (contentHash == lastUploadedContentHash
+                    && displayCacheKey.equals(lastUploadedDisplayKey)) {
+                lastUploadedFrame = frame;
+                lastUploadedFrameRevision = frameRevision;
+                return;
             }
 
             if (displaySettings.needsColorGrading()) {
@@ -319,6 +365,9 @@ public final class ScreenTextureManager {
             }
 
             lastUploadedContentHash = contentHash;
+            lastUploadedFrame = frame;
+            lastUploadedFrameRevision = frameRevision;
+            lastUploadedDisplayKey = displayCacheKey;
             lastUploadMs = nowMs;
         }
 
@@ -328,6 +377,52 @@ public final class ScreenTextureManager {
                 hash = 31 * hash + displaySettings.cacheKey().hashCode();
             }
             return hash;
+        }
+
+        private void updateQualityTierIfNeeded(Vec3 playerPos) {
+            QualityTier desired = qualityTierForPlayer(playerPos);
+            if (desired == qualityTier) {
+                return;
+            }
+
+            int[] size = computeTextureSize(membership.gridWidth(), membership.gridHeight(), desired);
+            if (size[0] == source.getWidth() && size[1] == source.getHeight()) {
+                qualityTier = desired;
+                return;
+            }
+
+            source.dispose();
+            source = ClientVideoSourceCatalog.INSTANCE.create(descriptor, size[0], size[1]);
+            qualityTier = desired;
+            gradedFrame = new VideoFrame(source.getWidth(), source.getHeight());
+            lastFrameWidth = 0;
+            lastFrameHeight = 0;
+            lastUploadedContentHash = 0;
+            lastUploadedFrame = null;
+            lastUploadedFrameRevision = -1L;
+            lastUploadedDisplayKey = "";
+            lastRenderContextKey = "";
+        }
+
+        private QualityTier qualityTierForPlayer(Vec3 playerPos) {
+            if (!ModConfig.ENABLE_DYNAMIC_LOD.get() || playerPos == null) {
+                return QualityTier.NEAR;
+            }
+            BlockPos origin = membership.groupOrigin();
+            double dx = playerPos.x - (origin.getX() + 0.5);
+            double dy = playerPos.y - (origin.getY() + 0.5);
+            double dz = playerPos.z - (origin.getZ() + 0.5);
+            double distance = Math.sqrt(dx * dx + dy * dy + dz * dz)
+                    - Math.max(membership.gridWidth(), membership.gridHeight()) * 0.5D;
+            int near = ModConfig.LOD_NEAR_DISTANCE.get();
+            int mid = Math.max(near + 1, ModConfig.LOD_MID_DISTANCE.get());
+            if (distance <= near) {
+                return QualityTier.NEAR;
+            }
+            if (distance <= mid) {
+                return QualityTier.MID;
+            }
+            return QualityTier.FAR;
         }
 
         private void ensureGradedFrameSize(int width, int height) {

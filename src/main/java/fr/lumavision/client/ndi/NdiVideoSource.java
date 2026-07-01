@@ -28,6 +28,7 @@ public final class NdiVideoSource implements VideoSource {
     private DevolayReceiver receiver;
     private Thread captureThread;
     private volatile boolean running;
+    private long lastConvertedFrameMs;
 
     public NdiVideoSource(String sourceName, int targetWidth, int targetHeight) {
         this.sourceName = sourceName;
@@ -103,8 +104,12 @@ public final class NdiVideoSource implements VideoSource {
             try {
                 DevolayFrameType type = receiver.receiveCapture(ndiFrame, null, null, timeout);
                 if (type == DevolayFrameType.VIDEO) {
+                    if (!shouldConvertFrame()) {
+                        continue;
+                    }
                     VideoFrame converted = converter.convert(ndiFrame, targetWidth, targetHeight);
                     displayFrame.set(converted);
+                    lastConvertedFrameMs = System.currentTimeMillis();
                 } else if (type == DevolayFrameType.ERROR) {
                     LumaVisionMod.LOGGER.warn("NDI connection lost for '{}'", sourceName);
                 }
@@ -116,5 +121,14 @@ public final class NdiVideoSource implements VideoSource {
                 ndiFrame.close();
             }
         }
+    }
+
+    private boolean shouldConvertFrame() {
+        int maxFramesPerSecond = ModConfig.MAX_NDI_CAPTURE_FRAMES_PER_SECOND.get();
+        if (maxFramesPerSecond <= 0 || lastConvertedFrameMs <= 0) {
+            return true;
+        }
+        long minIntervalMs = Math.max(1L, 1000L / maxFramesPerSecond);
+        return System.currentTimeMillis() - lastConvertedFrameMs >= minIntervalMs;
     }
 }

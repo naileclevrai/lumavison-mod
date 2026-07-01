@@ -96,7 +96,7 @@ public final class NdiDiscoveryService {
             if (source.getSourceName().equals(sourceName)) {
                 return new DevolayReceiver(
                         source,
-                        DevolayReceiver.ColorFormat.BGRX_BGRA,
+                        DevolayReceiver.ColorFormat.RGBX_RGBA,
                         DevolayReceiver.RECEIVE_BANDWIDTH_HIGHEST,
                         false,
                         "LumaVision"

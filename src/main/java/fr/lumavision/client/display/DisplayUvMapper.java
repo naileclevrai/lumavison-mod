@@ -54,6 +54,23 @@ public final class DisplayUvMapper {
         );
     }
 
+    public static MappedUv mapWall(
+            ScreenGroupMembership group,
+            ScreenDisplaySettings settings,
+            int frameWidth,
+            int frameHeight,
+            float quadY1
+    ) {
+        float[] content = frameWidth <= 0 || frameHeight <= 0
+                ? new float[]{0.0F, 0.0F, 1.0F, 1.0F}
+                : contentRegion(settings.mode(), frameWidth, frameHeight, group.gridWidth(), group.gridHeight());
+        float[] transformed = transformCorners(content[0], content[1], content[2], content[3], settings);
+        return new MappedUv(
+                transformed[0], transformed[1], transformed[2], transformed[3],
+                0.0F, 0.0F, group.gridWidth(), quadY1
+        );
+    }
+
     private static float[] contentRegion(DisplayMode mode, int frameW, int frameH, int gridW, int gridH) {
         float frameAspect = (float) frameW / frameH;
         float wallAspect = (float) gridW / gridH;
