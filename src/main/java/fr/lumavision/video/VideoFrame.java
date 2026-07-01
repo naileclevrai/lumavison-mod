@@ -153,6 +153,24 @@ public final class VideoFrame {
         }
     }
 
+    public void copyColorGradedFrom(VideoFrame source, int[] redMap, int[] greenMap, int[] blueMap) {
+        if (source.width != width || source.height != height) {
+            throw new IllegalArgumentException("Frame size mismatch");
+        }
+        int[] sourcePixels = source.pixels;
+        for (int i = 0; i < pixels.length; i++) {
+            int nativeRgba = sourcePixels[i];
+            int red = nativeRgba & 0xFF;
+            int green = (nativeRgba >>> 8) & 0xFF;
+            int blue = (nativeRgba >>> 16) & 0xFF;
+            pixels[i] = (nativeRgba & 0xFF000000)
+                    | (blueMap[blue] << 16)
+                    | (greenMap[green] << 8)
+                    | redMap[red];
+        }
+        markDirty();
+    }
+
     private int index(int x, int y) {
         return y * width + x;
     }

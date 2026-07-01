@@ -17,54 +17,36 @@ public final class DisplayColorGrading {
             throw new IllegalArgumentException("Frame size mismatch");
         }
 
-        float contrast = settings.contrast();
-        float gamma = settings.gamma();
-        float invGamma = 1.0F / gamma;
-
-        int width = source.getWidth();
-        int height = source.getHeight();
-
-        for (int y = 0; y < height; y++) {
-            for (int x = 0; x < width; x++) {
-                int argb = source.getArgb(x, y);
-                int a = (argb >>> 24) & 0xFF;
-                float r = ((argb >>> 16) & 0xFF) / 255.0F;
-                float g = ((argb >>> 8) & 0xFF) / 255.0F;
-                float b = (argb & 0xFF) / 255.0F;
-
-                r = applyContrast(r, contrast);
-                g = applyContrast(g, contrast);
-                b = applyContrast(b, contrast);
-
-                r = (float) Math.pow(Math.max(0.0F, r), invGamma);
-                g = (float) Math.pow(Math.max(0.0F, g), invGamma);
-                b = (float) Math.pow(Math.max(0.0F, b), invGamma);
-
-                target.setArgb(x, y, (a << 24)
-                        | (toByte(r) << 16)
-                        | (toByte(g) << 8)
-                        | toByte(b));
-            }
-        }
-        target.markDirty();
+        int[] redMap = new int[256];
+        int[] greenMap = new int[256];
+        int[] blueMap = new int[256];
+        buildLookupTables(settings, redMap, greenMap, blueMap);
+        target.copyColorGradedFrom(source, redMap, greenMap, blueMap);
     }
 
     public static int[] vertexColor(ScreenDisplaySettings settings) {
+        return new int[]{255, 255, 255, 255};
+    }
+
+    private static void buildLookupTables(ScreenDisplaySettings settings, int[] redMap, int[] greenMap, int[] blueMap) {
         float brightness = settings.brightness();
         float contrast = settings.contrast();
         float gamma = settings.gamma();
         float colorTemp = settings.colorTemp();
+        float invGamma = 1.0F / gamma;
 
-        float warmR = 1.0F + colorTemp * 0.12F;
-        float warmB = 1.0F - colorTemp * 0.12F;
-        float gammaGain = 1.0F / gamma;
-        float contrastGain = 0.5F + contrast * 0.5F;
-        float gain = brightness * gammaGain * contrastGain;
+        float warmR = 1.0F + colorTemp * 0.25F;
+        float warmB = 1.0F - colorTemp * 0.25F;
 
-        int r = toByte(gain * warmR);
-        int g = toByte(gain);
-        int b = toByte(gain * warmB);
-        return new int[]{r, g, b, 255};
+        for (int i = 0; i < 256; i++) {
+            float channel = i / 255.0F;
+            redMap[i] = toByte((float) Math.pow(Math.max(0.0F,
+                    applyContrast(channel, contrast) * brightness * warmR), invGamma));
+            greenMap[i] = toByte((float) Math.pow(Math.max(0.0F,
+                    applyContrast(channel, contrast) * brightness), invGamma));
+            blueMap[i] = toByte((float) Math.pow(Math.max(0.0F,
+                    applyContrast(channel, contrast) * brightness * warmB), invGamma));
+        }
     }
 
     private static float applyContrast(float channel, float contrast) {

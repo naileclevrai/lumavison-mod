@@ -245,6 +245,7 @@ public final class ScreenTextureManager {
         private VideoSource source;
         private final DynamicTextureHandle texture;
         private QualityTier qualityTier;
+        private VideoFrame gradedFrame;
 
         private int lastFrameWidth;
         private int lastFrameHeight;
@@ -264,6 +265,7 @@ public final class ScreenTextureManager {
             this.source = source;
             this.texture = texture;
             this.qualityTier = qualityTier;
+            this.gradedFrame = new VideoFrame(source.getWidth(), source.getHeight());
         }
 
         private boolean matches(ScreenGroupMembership other, VideoSourceDescriptor otherDescriptor,
@@ -318,6 +320,7 @@ public final class ScreenTextureManager {
 
             ScreenDisplaySettings displaySettings = LedScreenBlockEntity.resolveDisplaySettings(level, membership);
             displayCacheKey = displaySettings.cacheKey();
+            String textureGradingKey = displaySettings.textureColorGradingKey();
 
             source.tick();
             VideoFrame frame = source.getCurrentFrame();
@@ -341,29 +344,39 @@ public final class ScreenTextureManager {
             long frameRevision = frame.getRevision();
             if (frame == lastUploadedFrame
                     && frameRevision == lastUploadedFrameRevision
-                    && lastUploadedDisplayKey.isEmpty()) {
+                    && textureGradingKey.equals(lastUploadedDisplayKey)) {
                 return;
             }
 
-            int contentHash = computeUploadContentHash(frame);
+            int contentHash = computeUploadContentHash(frame, displaySettings);
             if (contentHash == lastUploadedContentHash
-                    && lastUploadedDisplayKey.isEmpty()) {
+                    && textureGradingKey.equals(lastUploadedDisplayKey)) {
                 lastUploadedFrame = frame;
                 lastUploadedFrameRevision = frameRevision;
                 return;
             }
 
-            texture.upload(frame);
+            if (displaySettings.needsTextureColorGrading()) {
+                ensureGradedFrameSize(frame.getWidth(), frame.getHeight());
+                DisplayColorGrading.applyInto(frame, gradedFrame, displaySettings);
+                texture.upload(gradedFrame);
+            } else {
+                texture.upload(frame);
+            }
 
             lastUploadedContentHash = contentHash;
             lastUploadedFrame = frame;
             lastUploadedFrameRevision = frameRevision;
-            lastUploadedDisplayKey = "";
+            lastUploadedDisplayKey = textureGradingKey;
             lastUploadMs = nowMs;
         }
 
-        private static int computeUploadContentHash(VideoFrame frame) {
-            return FrameHasher.sampleHash(frame, FRAME_HASH_SAMPLE_SIZE, FRAME_HASH_SAMPLE_SIZE);
+        private static int computeUploadContentHash(VideoFrame frame, ScreenDisplaySettings displaySettings) {
+            int hash = FrameHasher.sampleHash(frame, FRAME_HASH_SAMPLE_SIZE, FRAME_HASH_SAMPLE_SIZE);
+            if (displaySettings.needsTextureColorGrading()) {
+                hash = 31 * hash + displaySettings.textureColorGradingKey().hashCode();
+            }
+            return hash;
         }
 
         private void updateQualityTierIfNeeded(Vec3 playerPos) {
@@ -381,6 +394,7 @@ public final class ScreenTextureManager {
             source.dispose();
             source = ClientVideoSourceCatalog.INSTANCE.create(descriptor, size[0], size[1]);
             qualityTier = desired;
+            gradedFrame = new VideoFrame(source.getWidth(), source.getHeight());
             lastFrameWidth = 0;
             lastFrameHeight = 0;
             lastUploadedContentHash = 0;
@@ -409,6 +423,13 @@ public final class ScreenTextureManager {
                 return QualityTier.MID;
             }
             return QualityTier.FAR;
+        }
+
+        private void ensureGradedFrameSize(int width, int height) {
+            if (gradedFrame != null && gradedFrame.getWidth() == width && gradedFrame.getHeight() == height) {
+                return;
+            }
+            gradedFrame = new VideoFrame(width, height);
         }
 
         @Override
