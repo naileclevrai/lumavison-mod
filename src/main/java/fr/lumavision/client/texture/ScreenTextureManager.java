@@ -273,8 +273,7 @@ public final class ScreenTextureManager {
             return membership.gridWidth() == other.gridWidth()
                     && membership.gridHeight() == other.gridHeight()
                     && membership.groupOrigin().equals(other.groupOrigin())
-                    && descriptor.cacheKey().equals(otherDescriptor.cacheKey())
-                    && displayCacheKey.equals(displaySettings.cacheKey());
+                    && descriptor.cacheKey().equals(otherDescriptor.cacheKey());
         }
 
         private DynamicTextureHandle texture() {
@@ -321,6 +320,7 @@ public final class ScreenTextureManager {
 
             ScreenDisplaySettings displaySettings = LedScreenBlockEntity.resolveDisplaySettings(level, membership);
             displayCacheKey = displaySettings.cacheKey();
+            String textureGradingKey = displaySettings.textureColorGradingKey();
 
             source.tick();
             VideoFrame frame = source.getCurrentFrame();
@@ -344,19 +344,19 @@ public final class ScreenTextureManager {
             long frameRevision = frame.getRevision();
             if (frame == lastUploadedFrame
                     && frameRevision == lastUploadedFrameRevision
-                    && displayCacheKey.equals(lastUploadedDisplayKey)) {
+                    && textureGradingKey.equals(lastUploadedDisplayKey)) {
                 return;
             }
 
             int contentHash = computeUploadContentHash(frame, displaySettings);
             if (contentHash == lastUploadedContentHash
-                    && displayCacheKey.equals(lastUploadedDisplayKey)) {
+                    && textureGradingKey.equals(lastUploadedDisplayKey)) {
                 lastUploadedFrame = frame;
                 lastUploadedFrameRevision = frameRevision;
                 return;
             }
 
-            if (displaySettings.needsColorGrading()) {
+            if (displaySettings.needsTextureColorGrading()) {
                 ensureGradedFrameSize(frame.getWidth(), frame.getHeight());
                 DisplayColorGrading.applyInto(frame, gradedFrame, displaySettings);
                 texture.upload(gradedFrame);
@@ -367,14 +367,14 @@ public final class ScreenTextureManager {
             lastUploadedContentHash = contentHash;
             lastUploadedFrame = frame;
             lastUploadedFrameRevision = frameRevision;
-            lastUploadedDisplayKey = displayCacheKey;
+            lastUploadedDisplayKey = textureGradingKey;
             lastUploadMs = nowMs;
         }
 
         private static int computeUploadContentHash(VideoFrame frame, ScreenDisplaySettings displaySettings) {
             int hash = FrameHasher.sampleHash(frame, FRAME_HASH_SAMPLE_SIZE, FRAME_HASH_SAMPLE_SIZE);
-            if (displaySettings.needsColorGrading()) {
-                hash = 31 * hash + displaySettings.cacheKey().hashCode();
+            if (displaySettings.needsTextureColorGrading()) {
+                hash = 31 * hash + displaySettings.textureColorGradingKey().hashCode();
             }
             return hash;
         }

@@ -17,13 +17,8 @@ public final class DisplayColorGrading {
             throw new IllegalArgumentException("Frame size mismatch");
         }
 
-        float brightness = settings.brightness();
         float contrast = settings.contrast();
         float gamma = settings.gamma();
-        float colorTemp = settings.colorTemp();
-
-        float warmR = 1.0F + colorTemp * 0.15F;
-        float warmB = 1.0F - colorTemp * 0.15F;
         float invGamma = 1.0F / gamma;
 
         int width = source.getWidth();
@@ -37,9 +32,9 @@ public final class DisplayColorGrading {
                 float g = ((argb >>> 8) & 0xFF) / 255.0F;
                 float b = (argb & 0xFF) / 255.0F;
 
-                r = applyContrast(r, contrast) * brightness * warmR;
-                g = applyContrast(g, contrast) * brightness;
-                b = applyContrast(b, contrast) * brightness * warmB;
+                r = applyContrast(r, contrast);
+                g = applyContrast(g, contrast);
+                b = applyContrast(b, contrast);
 
                 r = (float) Math.pow(Math.max(0.0F, r), invGamma);
                 g = (float) Math.pow(Math.max(0.0F, g), invGamma);
@@ -56,15 +51,14 @@ public final class DisplayColorGrading {
 
     public static int[] vertexColor(ScreenDisplaySettings settings) {
         float brightness = settings.brightness();
-        float contrast = settings.contrast();
         float colorTemp = settings.colorTemp();
 
         float warmR = 1.0F + colorTemp * 0.12F;
         float warmB = 1.0F - colorTemp * 0.12F;
 
-        int r = toByte(applyContrast(0.5F, contrast) * brightness * warmR * 2.0F);
-        int g = toByte(applyContrast(0.5F, contrast) * brightness * 2.0F);
-        int b = toByte(applyContrast(0.5F, contrast) * brightness * warmB * 2.0F);
+        int r = toByte(brightness * warmR);
+        int g = toByte(brightness);
+        int b = toByte(brightness * warmB);
         return new int[]{r, g, b, 255};
     }
 
