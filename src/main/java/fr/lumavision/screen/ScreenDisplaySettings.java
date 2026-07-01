@@ -69,17 +69,6 @@ public record ScreenDisplaySettings(
         return new ScreenDisplaySettings(rotation, mirrorH, mirrorV, mode, brightness, contrast, gamma, value);
     }
 
-    public boolean needsTextureColorGrading() {
-        return contrast != 1.0F || gamma != 1.0F;
-    }
-
-    public String textureColorGradingKey() {
-        if (!needsTextureColorGrading()) {
-            return "";
-        }
-        return contrast + "|" + gamma;
-    }
-
     public String cacheKey() {
         return rotation + "|" + mirrorH + "|" + mirrorV + "|" + mode.name() + "|"
                 + brightness + "|" + contrast + "|" + gamma + "|" + colorTemp;

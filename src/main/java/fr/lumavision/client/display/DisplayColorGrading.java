@@ -51,14 +51,19 @@ public final class DisplayColorGrading {
 
     public static int[] vertexColor(ScreenDisplaySettings settings) {
         float brightness = settings.brightness();
+        float contrast = settings.contrast();
+        float gamma = settings.gamma();
         float colorTemp = settings.colorTemp();
 
         float warmR = 1.0F + colorTemp * 0.12F;
         float warmB = 1.0F - colorTemp * 0.12F;
+        float gammaGain = 1.0F / gamma;
+        float contrastGain = 0.5F + contrast * 0.5F;
+        float gain = brightness * gammaGain * contrastGain;
 
-        int r = toByte(brightness * warmR);
-        int g = toByte(brightness);
-        int b = toByte(brightness * warmB);
+        int r = toByte(gain * warmR);
+        int g = toByte(gain);
+        int b = toByte(gain * warmB);
         return new int[]{r, g, b, 255};
     }
 
