@@ -77,8 +77,9 @@ public final class CameraCraneRenderer implements BlockEntityRenderer<CameraBloc
             double[] tip = CameraRig.craneTipRelative(baseYaw, p);
             pose.pushPose();
             pose.translate(tip[0], tip[1] - CameraRig.CRANE_CAMERA_DROP, tip[2]);
-            // Face the lens outward along the arm swing. (Sign is a first pass — tune to view.)
-            pose.mulPose(Axis.YP.rotationDegrees(180.0F - (float) tip[3]));
+            // The model's lens points north (-Z); rotating by armYaw aims it outward along the arm,
+            // matching the shot direction (180 - armYaw) that CameraRig.craneView looks along.
+            pose.mulPose(Axis.YP.rotationDegrees((float) tip[3]));
             float camScale = 1.1F;
             pose.scale(camScale, camScale, camScale);
             pose.translate(-0.5D, -0.5D, -0.5D); // block models render from the 0..1 corner — centre it
