@@ -41,6 +41,7 @@
   "menu.lumavision.camera_config": "Camera Configuration",
   "gui.lumavision.camera_config.ndi_name": "NDI SOURCE NAME",
   "gui.lumavision.camera_config.res_fps_fov": "WIDTH   HEIGHT   FPS   FOV",
+  "gui.lumavision.camera_config.aim": "AIM  (pan°   tilt°   roll°)",
   "gui.lumavision.camera_config.dmx_universe": "DMX UNIVERSE",
   "gui.lumavision.camera_config.dmx_channels": "DMX CHANNELS  (pan  tilt  zoom  track  enable)",
   "gui.lumavision.camera_config.enabled": "Enabled: %s",

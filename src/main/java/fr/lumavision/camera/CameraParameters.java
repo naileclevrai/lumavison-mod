@@ -211,6 +211,9 @@ public final class CameraParameters {
         buf.writeVarInt(resolutionHeight);
         buf.writeVarInt(fps);
         buf.writeFloat(fov);
+        buf.writeFloat(pan);
+        buf.writeFloat(tilt);
+        buf.writeFloat(roll);
         buf.writeBoolean(enabled);
         buf.writeInt(dmx.universe());
         buf.writeBoolean(dmx.sixteenBit());
@@ -229,6 +232,9 @@ public final class CameraParameters {
         setResolution(w, h);
         setFps(buf.readVarInt());
         setFov(buf.readFloat());
+        setPan(buf.readFloat());
+        setTilt(buf.readFloat());
+        setRoll(buf.readFloat());
         setEnabled(buf.readBoolean());
         dmx.setUniverse(buf.readInt());
         dmx.setSixteenBit(buf.readBoolean());

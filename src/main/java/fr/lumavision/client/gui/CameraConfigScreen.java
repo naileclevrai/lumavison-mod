@@ -25,13 +25,16 @@ import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 public final class CameraConfigScreen extends AbstractContainerScreen<CameraConfigMenu> {
 
     private static final int PANEL_W = 260;
-    private static final int PANEL_H = 210;
+    private static final int PANEL_H = 236;
 
     private EditBox nameBox;
     private EditBox resWBox;
     private EditBox resHBox;
     private EditBox fpsBox;
     private EditBox fovBox;
+    private EditBox panBox;
+    private EditBox tiltBox;
+    private EditBox rollBox;
     private EditBox universeBox;
     private EditBox panChBox;
     private EditBox tiltChBox;
@@ -80,6 +83,12 @@ public final class CameraConfigScreen extends AbstractContainerScreen<CameraConf
         resHBox = addEdit(left + 56, y, 48, Integer.toString(p.resolutionHeight()));
         fpsBox = addEdit(left + 120, y, 36, Integer.toString(p.fps()));
         fovBox = addEdit(left + 176, y, 48, Integer.toString(Math.round(p.fov())));
+        y += rowH + 4;
+
+        // Manual aim: point the camera lens (degrees), independent of the player. DMX overrides these when patched.
+        panBox = addEdit(left, y, 60, fmt(p.pan()));
+        tiltBox = addEdit(left + 68, y, 60, fmt(p.tilt()));
+        rollBox = addEdit(left + 136, y, 60, fmt(p.roll()));
         y += rowH + 4;
 
         enabledButton = Button.builder(enabledLabel(), b -> {
@@ -134,6 +143,9 @@ public final class CameraConfigScreen extends AbstractContainerScreen<CameraConf
         edited.setResolution(parseInt(resWBox, 1280), parseInt(resHBox, 720));
         edited.setFps(parseInt(fpsBox, 30));
         edited.setFov(parseFloat(fovBox, 70.0F));
+        edited.setPan(parseFloat(panBox, 0.0F));
+        edited.setTilt(parseFloat(tiltBox, 0.0F));
+        edited.setRoll(parseFloat(rollBox, 0.0F));
         edited.setEnabled(enabled);
         edited.dmx().setUniverse(parseInt(universeBox, 0));
         edited.dmx().setSixteenBit(sixteenBit);
@@ -165,6 +177,10 @@ public final class CameraConfigScreen extends AbstractContainerScreen<CameraConf
         }
     }
 
+    private static String fmt(float value) {
+        return Integer.toString(Math.round(value));
+    }
+
     @Override
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         renderBackground(graphics);
@@ -184,9 +200,10 @@ public final class CameraConfigScreen extends AbstractContainerScreen<CameraConf
         int grey = 0xA0A0B0;
         graphics.drawString(this.font, this.title, 8, 5, white, false);
         graphics.drawString(this.font, Component.translatable("gui.lumavision.camera_config.ndi_name"), 12, 12, grey, false);
-        graphics.drawString(this.font, Component.translatable("gui.lumavision.camera_config.res_fps_fov"), 12, 46, grey, false);
-        graphics.drawString(this.font, Component.translatable("gui.lumavision.camera_config.dmx_universe"), 12, 108, grey, false);
-        graphics.drawString(this.font, Component.translatable("gui.lumavision.camera_config.dmx_channels"), 12, 142, grey, false);
+        graphics.drawString(this.font, Component.translatable("gui.lumavision.camera_config.res_fps_fov"), 12, 39, grey, false);
+        graphics.drawString(this.font, Component.translatable("gui.lumavision.camera_config.aim"), 12, 63, grey, false);
+        graphics.drawString(this.font, Component.translatable("gui.lumavision.camera_config.dmx_universe"), 12, 115, grey, false);
+        graphics.drawString(this.font, Component.translatable("gui.lumavision.camera_config.dmx_channels"), 12, 139, grey, false);
     }
 
     @Override
