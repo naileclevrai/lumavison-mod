@@ -238,12 +238,15 @@ public final class CameraNdiManager {
         float baseYaw = state.hasProperty(CameraBlock.FACING) ? state.getValue(CameraBlock.FACING).toYRot() : 0.0F;
         String name = p.ndiSourceName().isEmpty() ? CameraBlockEntity.defaultSourceName(pos) : p.ndiSourceName();
 
-        // Crane arm: reach = the modelled crane's fixed length, or boom blocks stacked under the camera;
-        // shoot from the arm end. Otherwise: block centre or rail dolly, aimed by pan/tilt.
-        float reach = be.getLevel() != null ? fr.lumavision.camera.CameraRig.reachFor(be.getLevel(), pos) : 0.0F;
+        // Crane: shoot from the camera hanging off the arm tip. Boom column: shoot from the arm end.
+        // Otherwise: block centre or rail dolly, aimed by pan/tilt.
         fr.lumavision.camera.CameraRig.View view;
-        if (reach > 0.0F) {
-            view = fr.lumavision.camera.CameraRig.compute(pos, baseYaw, p, reach);
+        if (be.getLevel() != null && fr.lumavision.camera.CameraRig.isCrane(be.getLevel(), pos)) {
+            view = fr.lumavision.camera.CameraRig.craneView(pos, baseYaw, p);
+        } else if (be.getLevel() != null
+                && fr.lumavision.camera.CameraRig.boomReach(be.getLevel(), pos) > 0) {
+            view = fr.lumavision.camera.CameraRig.compute(pos, baseYaw, p,
+                    fr.lumavision.camera.CameraRig.boomReach(be.getLevel(), pos));
         } else {
             double rx = pos.getX() + 0.5D;
             double ry = pos.getY() + 0.5D;

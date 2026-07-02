@@ -22,6 +22,12 @@ public final class CameraRig {
     /** Fixed arm reach (blocks) of the modelled {@code camera_crane} — matches its scaled 3D model. */
     public static final float CRANE_ARM_LENGTH = CRANE_BASE_REACH * CRANE_SCALE;
 
+    /** Height (blocks) of the crane arm pivot above the block origin — matches the scaled model. */
+    public static final double CRANE_PIVOT_Y = CRANE_SCALE * (9.0 / 16.0);
+
+    /** How far the camera hangs below the arm tip (blocks), gimbal-style like a real crane. */
+    public static final double CRANE_CAMERA_DROP = 0.5;
+
     /** Resolved shooting viewpoint: world position + look direction. */
     public record View(double x, double y, double z, float yaw, float pitch) {
     }
@@ -29,15 +35,33 @@ public final class CameraRig {
     private CameraRig() {
     }
 
+    /** True if the camera at {@code pos} is the modelled 3D crane block. */
+    public static boolean isCrane(BlockGetter level, BlockPos pos) {
+        return level.getBlockState(pos).is(ModBlocks.CAMERA_CRANE.get());
+    }
+
     /**
-     * Effective arm reach for a camera at {@code pos}: the fixed crane arm length for a modelled
-     * {@code camera_crane}, otherwise the number of boom blocks stacked below (0 = no arm).
+     * Arm-tip position relative to the crane block origin (in blocks) plus the arm yaw, from the
+     * current swing/boom. Shared by the renderer (to hang the camera model) and {@link #craneView}
+     * (the shot viewpoint) so the visible camera and the shot stay locked together.
+     * Returns {@code [x, y, z, armYawDegrees]}.
      */
-    public static float reachFor(BlockGetter level, BlockPos pos) {
-        if (level.getBlockState(pos).is(ModBlocks.CAMERA_CRANE.get())) {
-            return CRANE_ARM_LENGTH;
-        }
-        return boomReach(level, pos);
+    public static double[] craneTipRelative(float baseYaw, CameraParameters p) {
+        float armYaw = baseYaw + p.boomSwing();
+        double yawRad = Math.toRadians(armYaw);
+        double pitchRad = Math.toRadians(p.boomPitch());
+        double horiz = Math.cos(pitchRad) * CRANE_ARM_LENGTH;
+        double x = 0.5 - Math.sin(yawRad) * horiz;
+        double z = 0.5 + Math.cos(yawRad) * horiz;
+        double y = CRANE_PIVOT_Y + Math.sin(pitchRad) * CRANE_ARM_LENGTH;
+        return new double[]{x, y, z, armYaw};
+    }
+
+    /** The shot for a crane: from the camera hanging off the arm tip, aimed by swing (+pan) / tilt. */
+    public static View craneView(BlockPos pos, float baseYaw, CameraParameters p) {
+        double[] tip = craneTipRelative(baseYaw, p);
+        double camY = pos.getY() + tip[1] - CRANE_CAMERA_DROP;
+        return new View(pos.getX() + tip[0], camY, pos.getZ() + tip[2], (float) tip[3] + p.pan(), p.tilt());
     }
 
     /** Number of camera_boom blocks stacked directly under the camera = the crane arm reach. */

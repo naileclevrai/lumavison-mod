@@ -69,9 +69,11 @@ public final class SeatOperator {
             ModNetworking.CHANNEL.sendToServer(new CameraRigInputPacket(controlledCamera, forward, strafe, scroll));
         }
 
-        // Put the player's view at the arm tip, looking where the camera looks.
-        float reach = CameraRig.reachFor(mc.level, controlledCamera);
-        CameraRig.View view = CameraRig.compute(controlledCamera, baseYaw(camera), camera.parameters(), reach);
+        // Put the player's view at the hanging camera (crane) or the boom arm tip.
+        CameraRig.View view = CameraRig.isCrane(mc.level, controlledCamera)
+                ? CameraRig.craneView(controlledCamera, baseYaw(camera), camera.parameters())
+                : CameraRig.compute(controlledCamera, baseYaw(camera), camera.parameters(),
+                        CameraRig.boomReach(mc.level, controlledCamera));
         if (viewAnchor == null) {
             viewAnchor = new CameraSeatEntity(ModEntities.CAMERA_SEAT.get(), mc.level);
         }
