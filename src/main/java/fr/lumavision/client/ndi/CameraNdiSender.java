@@ -109,7 +109,9 @@ final class CameraNdiSender {
             scratch = new byte[w * h * 4];
             direct = ByteBuffer.allocateDirect(w * h * 4).order(ByteOrder.nativeOrder());
             frame.setResolution(w, h);
-            frame.setFourCCType(DevolayFrameFourCCType.BGRA);
+            // BGRX (not BGRA): the feed is opaque; ignore the framebuffer alpha, which the sun
+            // (additive) and rain (blended) leave non-opaque, causing artifacts / transparency.
+            frame.setFourCCType(DevolayFrameFourCCType.BGRX);
             frame.setFormatType(DevolayFrameFormatType.PROGRESSIVE);
             frame.setLineStride(w * 4);
             frame.setAspectRatio((float) w / h);

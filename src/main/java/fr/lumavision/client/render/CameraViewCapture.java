@@ -3,7 +3,6 @@ package fr.lumavision.client.render;
 import com.mojang.blaze3d.pipeline.MainTarget;
 import com.mojang.blaze3d.pipeline.RenderTarget;
 import com.mojang.blaze3d.platform.GlStateManager;
-import com.mojang.blaze3d.platform.Window;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexSorting;
@@ -24,7 +23,6 @@ import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Marker;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
-import net.minecraftforge.fml.ModList;
 import org.joml.Matrix3f;
 import org.joml.Matrix4f;
 import org.lwjgl.opengl.GL11;
@@ -32,9 +30,7 @@ import org.lwjgl.opengl.GL12;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 /**
@@ -42,11 +38,13 @@ import java.util.Map;
  * back (BGRA, top-down) for NDI. Runs on the render thread from {@code RenderTickEvent.END} (outside
  * the main {@code renderLevel}, so it isn't re-entrant).
  *
- * <p>Each camera gets its <em>own</em> {@link ViewArea} (chunk-render grid) and visible-chunk list.
- * Around the capture we swap the {@link LevelRenderer}'s chunk-render state to the camera's and
- * restore the player's afterward, so cameras render independently and never corrupt the player's
- * view. Chunks around the camera are compiled by the shared dispatcher over a few frames, so a
- * newly-placed / newly-loaded camera fills in progressively.
+ * <p>Each camera gets its own {@link ViewArea} (chunk-render grid) and visible-chunk list; around the
+ * capture we swap the {@link LevelRenderer}'s chunk-render state to the camera's and restore the
+ * player's afterward, so cameras render independently and never corrupt the player's view.
+ *
+ * <p>The camera renders at the game framebuffer size: post-processing mods (e.g. Shimmer) bind
+ * window-sized buffers mid-{@code renderLevel} and reset the viewport to the window size, so matching
+ * that size is what makes the whole frame render instead of a window-sized corner.
  */
 @OnlyIn(Dist.CLIENT)
 public final class CameraViewCapture {
@@ -80,7 +78,6 @@ public final class CameraViewCapture {
     private final Map<BlockPos, Target> targets = new HashMap<>();
     private final Camera captureCamera = new Camera();
     private boolean fabulousWarned;
-    private boolean diagLogged;
 
     private CameraViewCapture() {
     }
@@ -109,9 +106,8 @@ public final class CameraViewCapture {
     }
 
     private void captureOne(Minecraft mc, BlockPos pos, CameraSnapshot snapshot, float partialTick) {
-        // Render at the game's framebuffer size. Post-processing mods (Shimmer) bind window-sized
-        // buffers mid-renderLevel and reset the viewport to the window size; matching that size means
-        // the whole frame renders instead of a window-sized corner. NDI output uses this size.
+        // Render at the game's framebuffer size so post-processing mods that reset the viewport to the
+        // window size (Shimmer) don't clip the camera to a corner. NDI output uses this size.
         int w = Math.max(2, mc.getMainRenderTarget().width);
         int h = Math.max(2, mc.getMainRenderTarget().height);
 
@@ -162,12 +158,6 @@ public final class CameraViewCapture {
         LevelRenderer lr = mc.levelRenderer;
         RenderTarget previousTarget = mc.mainRenderTarget; // access-transformed to public
 
-        List<String> diag = diagLogged ? null : new ArrayList<>();
-        if (diag != null) {
-            diag.add("entry " + glState() + " prevTgt=" + dims(previousTarget)
-                    + " camTgt=" + dims(t.rt) + " shimmer=" + ModList.get().isLoaded("shimmer"));
-        }
-
         // --- save the player's chunk-render state ---
         ViewArea pViewArea = lr.viewArea;
         ObjectArrayList pRenderChunks = lr.renderChunksInFrustum;
@@ -192,14 +182,6 @@ public final class CameraViewCapture {
         mc.renderBuffers().bufferSource().endBatch();
         mc.mainRenderTarget = t.rt;
 
-        // The world render's viewport follows the window size; point it at the camera resolution so
-        // the whole target is rendered (not just a window-sized corner). Restored in finally.
-        Window window = mc.getWindow();
-        int prevWinW = window.getWidth();
-        int prevWinH = window.getHeight();
-        window.setWidth(t.w);
-        window.setHeight(t.h);
-
         // --- swap in the camera's chunk-render state ---
         lr.viewArea = t.viewArea;
         lr.renderChunksInFrustum = (ObjectArrayList) t.renderChunks;
@@ -212,20 +194,13 @@ public final class CameraViewCapture {
         lr.lastCameraChunkZ = t.lastChunkZ;
 
         try {
-            // MainTarget sets viewWidth/viewHeight to the window size (it mirrors the main framebuffer);
-            // force them to the camera resolution so every bindWrite in renderLevel viewports to the target.
             t.rt.viewWidth = t.w;
             t.rt.viewHeight = t.h;
-            if (diag != null) diag.add("afterSetViewWH " + glState() + " camTgt=" + dims(t.rt));
             t.rt.clear(Minecraft.ON_OSX);
-            if (diag != null) diag.add("afterClear " + glState());
             t.rt.bindWrite(true);
-            if (diag != null) diag.add("afterBindWrite " + glState());
             RenderSystem.viewport(0, 0, t.w, t.h);
-            if (diag != null) diag.add("afterViewport " + glState());
 
             captureCamera.setup(mc.level, marker, false, false, partialTick);
-            if (diag != null) diag.add("afterSetup " + glState());
 
             float far = Math.max(mc.gameRenderer.getRenderDistance(), 64.0F) * 4.0F;
             Matrix4f projection = new Matrix4f().perspective(
@@ -239,24 +214,8 @@ public final class CameraViewCapture {
             RenderSystem.setInverseViewRotationMatrix(inverseView);
 
             lr.prepareCullFrustum(poseStack, captureCamera.getPosition(), projection);
-            if (diag != null) diag.add("afterPrepareCull " + glState());
             lr.renderLevel(poseStack, partialTick, 0L, false, captureCamera, mc.gameRenderer,
                     mc.gameRenderer.lightTexture(), projection);
-            if (diag != null) diag.add("afterRenderLevel " + glState());
-
-            RenderSystem.viewport(0, 0, t.w, t.h); // re-assert before readback in case renderLevel changed it
-            if (diag != null) diag.add("afterReViewport " + glState() + " camTgt=" + dims(t.rt)
-                    + " window=" + window.getWidth() + "x" + window.getHeight());
-
-            if (diag != null) {
-                diagLogged = true;
-                for (String line : diag) {
-                    LumaVisionMod.LOGGER.info("[LVdiag] {}", line);
-                    if (mc.player != null) {
-                        mc.player.displayClientMessage(net.minecraft.network.chat.Component.literal("[LV] " + line), false);
-                    }
-                }
-            }
 
             mc.renderBuffers().bufferSource().endBatch();
             t.rt.unbindWrite();
@@ -281,26 +240,10 @@ public final class CameraViewCapture {
             lr.lastCameraChunkY = pLastCY;
             lr.lastCameraChunkZ = pLastCZ;
 
-            window.setWidth(prevWinW);
-            window.setHeight(prevWinH);
             mc.mainRenderTarget = previousTarget;
             marker.discard();
             mc.getMainRenderTarget().bindWrite(true);
         }
-    }
-
-    private static String glState() {
-        int[] vp = new int[4];
-        GL11.glGetIntegerv(GL11.GL_VIEWPORT, vp);
-        int[] sc = new int[4];
-        GL11.glGetIntegerv(GL11.GL_SCISSOR_BOX, sc);
-        boolean scissor = GL11.glIsEnabled(GL11.GL_SCISSOR_TEST);
-        return "vp=" + vp[2] + "x" + vp[3] + "@" + vp[0] + "," + vp[1]
-                + " sc=" + sc[2] + "x" + sc[3] + (scissor ? "(ON)" : "(off)");
-    }
-
-    private static String dims(RenderTarget rt) {
-        return rt.width + "x" + rt.height + "/vw" + rt.viewWidth + "x" + rt.viewHeight + "/fb" + rt.frameBufferId;
     }
 
     private byte[] readback(Target t) {
