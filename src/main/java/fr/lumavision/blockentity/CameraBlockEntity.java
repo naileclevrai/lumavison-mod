@@ -62,7 +62,16 @@ public class CameraBlockEntity extends BlockEntity {
     }
 
     public static void serverTick(Level level, BlockPos pos, BlockState state, CameraBlockEntity be) {
-        // Art-Net apply loop hooks in here in M3.
+        if (!fr.lumavision.artnet.ArtNetReceiver.isRunning()) {
+            return;
+        }
+        // Apply live DMX to this camera's parameters; on change, persist + push to tracking clients.
+        if (fr.lumavision.artnet.DmxCameraControl.apply(be.parameters, be.parameters.dmx())) {
+            be.setChanged();
+            if (level instanceof net.minecraft.server.level.ServerLevel serverLevel) {
+                fr.lumavision.network.ModNetworking.sendCameraLiveState(serverLevel, pos, be.parameters);
+            }
+        }
     }
 
     // --- persistence -------------------------------------------------------
