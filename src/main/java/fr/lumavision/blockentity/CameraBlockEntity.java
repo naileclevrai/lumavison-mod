@@ -55,7 +55,10 @@ public class CameraBlockEntity extends BlockEntity {
 
     public static void clientTick(Level level, BlockPos pos, BlockState state, CameraBlockEntity be) {
         be.clientTickCounter++;
-        // Capture scheduling is attached in M2; kept minimal here so the ticker path is exercised.
+        // Client-only: register/refresh this camera's NDI sender. Runs only on the client because
+        // getTicker wires clientTick solely when level.isClientSide, so the client-only manager
+        // class is never loaded on a dedicated server.
+        fr.lumavision.client.ndi.CameraNdiManager.getInstance().onCameraClientTick(be);
     }
 
     public static void serverTick(Level level, BlockPos pos, BlockState state, CameraBlockEntity be) {
