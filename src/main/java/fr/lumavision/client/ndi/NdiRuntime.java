@@ -11,6 +11,11 @@ import org.jetbrains.annotations.Nullable;
 @OnlyIn(Dist.CLIENT)
 public final class NdiRuntime {
 
+    private static final String RUNTIME_HINT =
+            " — the NDI Runtime must be installed on this machine (it is not bundled). "
+            + "Install NDI Tools / NDI Runtime from https://ndi.video/tools/ (Windows/macOS), "
+            + "or libndi from the NDI SDK (Linux), then restart.";
+
     private static boolean initialized;
     private static boolean available;
     private static boolean failureLogged;
@@ -38,7 +43,7 @@ public final class NdiRuntime {
             int result = me.walkerknapp.devolay.Devolay.loadLibraries();
             if (result != 0) {
                 available = false;
-                failureReason = "NDI native libraries failed to load (code " + result + ")";
+                failureReason = "NDI native libraries failed to load (code " + result + ")" + RUNTIME_HINT;
                 logFailure(null);
                 return false;
             }

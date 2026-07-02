@@ -5,7 +5,9 @@ import fr.lumavision.block.CameraBlock;
 import fr.lumavision.blockentity.CameraBlockEntity;
 import fr.lumavision.camera.CameraParameters;
 import fr.lumavision.config.ModConfig;
+import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
+import net.minecraft.network.chat.Component;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
@@ -33,6 +35,7 @@ public final class CameraNdiManager {
     private long clientTick;
     private boolean runtimeChecked;
     private boolean runtimeAvailable;
+    private boolean unavailableAnnounced;
 
     private CameraNdiManager() {
     }
@@ -113,6 +116,15 @@ public final class CameraNdiManager {
             runtimeAvailable = NdiRuntime.init();
             if (!runtimeAvailable) {
                 LumaVisionMod.LOGGER.warn("NDI camera output unavailable: {}", NdiRuntime.getFailureReason());
+            }
+        }
+        if (!runtimeAvailable && !unavailableAnnounced) {
+            unavailableAnnounced = true;
+            Minecraft mc = Minecraft.getInstance();
+            if (mc.player != null) {
+                mc.player.displayClientMessage(Component.literal(
+                        "[LumaVision] NDI output unavailable — install the NDI Runtime (ndi.video/tools) and restart. "
+                                + "See logs for details."), false);
             }
         }
         return runtimeAvailable;
