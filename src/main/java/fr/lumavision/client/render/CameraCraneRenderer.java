@@ -60,7 +60,9 @@ public final class CameraCraneRenderer implements BlockEntityRenderer<CameraBloc
 
         pose.pushPose();
         pose.translate(0.5D, 0.0D, 0.5D);
-        pose.scale(1.0F, -1.0F, -1.0F);
+        // Scale the whole rig up (in sync with CameraRig.CRANE_ARM_LENGTH); flip Y/Z into world space.
+        float s = fr.lumavision.camera.CameraRig.CRANE_SCALE;
+        pose.scale(s, -s, -s);
         VertexConsumer vc = buffers.getBuffer(RenderType.entitySolid(TEXTURE));
         root.render(pose, vc, packedLight, packedOverlay);
         pose.popPose();

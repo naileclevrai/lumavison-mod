@@ -13,8 +13,14 @@ import net.minecraft.world.level.BlockGetter;
  */
 public final class CameraRig {
 
-    /** Fixed arm reach (blocks) of the modelled {@code camera_crane} block — matches its 3D model. */
-    public static final float CRANE_ARM_LENGTH = 5.0F;
+    /** Visual (and reach) scale multiplier applied to the crane model by the renderer. */
+    public static final float CRANE_SCALE = 1.75F;
+
+    /** Arm-tip distance (blocks) of the crane model at scale 1 — the far end of the beam. */
+    private static final float CRANE_BASE_REACH = 5.0F;
+
+    /** Fixed arm reach (blocks) of the modelled {@code camera_crane} — matches its scaled 3D model. */
+    public static final float CRANE_ARM_LENGTH = CRANE_BASE_REACH * CRANE_SCALE;
 
     /** Resolved shooting viewpoint: world position + look direction. */
     public record View(double x, double y, double z, float yaw, float pitch) {
