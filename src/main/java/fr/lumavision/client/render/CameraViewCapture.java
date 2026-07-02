@@ -201,6 +201,9 @@ public final class CameraViewCapture {
         try {
             t.rt.clear(Minecraft.ON_OSX);
             t.rt.bindWrite(true);
+            // Force the viewport to the camera resolution: MainTarget/window state otherwise leaves it
+            // at the window size, so only a window-sized corner of the target was being rendered.
+            RenderSystem.viewport(0, 0, t.w, t.h);
 
             captureCamera.setup(mc.level, marker, false, false, partialTick);
 
