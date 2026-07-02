@@ -1,0 +1,8 @@
+{
+  "variants": {
+    "facing=north": { "model": "lumavision:block/ptz_camera" },
+    "facing=east":  { "model": "lumavision:block/ptz_camera", "y": 90 },
+    "facing=south": { "model": "lumavision:block/ptz_camera", "y": 180 },
+    "facing=west":  { "model": "lumavision:block/ptz_camera", "y": 270 }
+  }
+}

@@ -40,6 +40,13 @@ public final class ModBlocks {
                     .sound(SoundType.METAL)
                     .noOcclusion()));
 
+    public static final RegistryObject<CameraBlock> PTZ_CAMERA = BLOCKS.register("ptz_camera",
+            () -> new CameraBlock(BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.COLOR_BLACK)
+                    .strength(1.5F, 6.0F)
+                    .sound(SoundType.METAL)
+                    .noOcclusion()));
+
     public static final RegistryObject<CameraRailBlock> CAMERA_RAIL = BLOCKS.register("camera_rail",
             () -> new CameraRailBlock(BlockBehaviour.Properties.of()
                     .mapColor(MapColor.METAL)
