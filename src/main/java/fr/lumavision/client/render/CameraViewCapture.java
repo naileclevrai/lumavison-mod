@@ -2,6 +2,7 @@ package fr.lumavision.client.render;
 
 import com.mojang.blaze3d.pipeline.MainTarget;
 import com.mojang.blaze3d.pipeline.RenderTarget;
+import com.mojang.blaze3d.platform.GlStateManager;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexSorting;
@@ -22,7 +23,6 @@ import org.joml.Matrix3f;
 import org.joml.Matrix4f;
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL12;
-import org.lwjgl.opengl.GL30;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
@@ -177,13 +177,14 @@ public final class CameraViewCapture {
     private byte[] readback(Target t) {
         ByteBuffer buf = t.readBuffer;
         buf.clear();
-        t.rt.bindRead();
-        GL11.glReadBuffer(GL30.GL_COLOR_ATTACHMENT0);
+        // Read the target's own colour texture directly (not glReadPixels, which reads whatever
+        // framebuffer is currently bound — that was capturing the main screen + HUD instead).
+        GlStateManager._bindTexture(t.rt.getColorTextureId());
         GL11.glPixelStorei(GL11.GL_PACK_ALIGNMENT, 1);
-        GL11.glReadPixels(0, 0, t.w, t.h, GL12.GL_BGRA, GL11.GL_UNSIGNED_BYTE, buf);
-        t.rt.unbindRead();
+        GL11.glGetTexImage(GL11.GL_TEXTURE_2D, 0, GL12.GL_BGRA, GL11.GL_UNSIGNED_BYTE, buf);
+        GlStateManager._bindTexture(0);
 
-        // OpenGL returns rows bottom-to-top; NDI wants top-to-bottom, so flip while copying out.
+        // The texture is stored bottom-to-top; NDI wants top-to-bottom, so flip while copying out.
         int rowBytes = t.w * 4;
         byte[] out = new byte[rowBytes * t.h];
         for (int y = 0; y < t.h; y++) {
