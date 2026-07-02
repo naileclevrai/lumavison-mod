@@ -11,9 +11,13 @@ import fr.lumavision.LumaVisionMod;
 import fr.lumavision.client.ndi.CameraNdiManager;
 import fr.lumavision.client.ndi.CameraSnapshot;
 import fr.lumavision.config.ModConfig;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import net.minecraft.client.Camera;
 import net.minecraft.client.GraphicsStatus;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.renderer.LevelRenderer;
+import net.minecraft.client.renderer.ViewArea;
+import net.minecraft.client.renderer.culling.Frustum;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Marker;
@@ -31,12 +35,14 @@ import java.util.Map;
 
 /**
  * Renders each active camera's view of the world into an offscreen framebuffer and reads the pixels
- * back (BGRA, top-down) so {@link CameraNdiManager} can stream them over NDI. Runs on the render
- * thread from {@code RenderTickEvent.END} (outside the main {@code renderLevel}, so it isn't
- * re-entrant), following the approach proven by SecurityCraft: swap the camera entity to a throwaway
- * {@link Marker}, redirect {@code Minecraft.mainRenderTarget} to our target, let vanilla render, then
- * restore everything. If capture fails or the graphics mode is Fabulous (extra render targets we
- * don't manage), the camera falls back to the test pattern so the game stays stable.
+ * back (BGRA, top-down) for NDI. Runs on the render thread from {@code RenderTickEvent.END} (outside
+ * the main {@code renderLevel}, so it isn't re-entrant).
+ *
+ * <p>Each camera gets its <em>own</em> {@link ViewArea} (chunk-render grid) and visible-chunk list.
+ * Around the capture we swap the {@link LevelRenderer}'s chunk-render state to the camera's and
+ * restore the player's afterward, so cameras render independently and never corrupt the player's
+ * view. Chunks around the camera are compiled by the shared dispatcher over a few frames, so a
+ * newly-placed / newly-loaded camera fills in progressively.
  */
 @OnlyIn(Dist.CLIENT)
 public final class CameraViewCapture {
@@ -53,17 +59,27 @@ public final class CameraViewCapture {
         int w;
         int h;
         long lastCaptureNs;
+
+        // Per-camera chunk-render state.
+        ViewArea viewArea;
+        ObjectArrayList<?> renderChunks;
+        int viewDistance = -1;
+        double lastX = Double.NaN;
+        double lastY = Double.NaN;
+        double lastZ = Double.NaN;
+        int lastChunkX = Integer.MIN_VALUE;
+        int lastChunkY = Integer.MIN_VALUE;
+        int lastChunkZ = Integer.MIN_VALUE;
+        boolean needsFullUpdate = true;
     }
 
     private final Map<BlockPos, Target> targets = new HashMap<>();
-    /** A dedicated camera so we never mutate the game's main camera (which caused view-bob). */
     private final Camera captureCamera = new Camera();
     private boolean fabulousWarned;
 
     private CameraViewCapture() {
     }
 
-    /** Called on the render thread at {@code RenderTickEvent.END}. */
     public void renderTick(float partialTick) {
         if (!ModConfig.NDI_ENABLE_OUTPUT.get() || !ModConfig.CAMERA_RENDER_WORLD.get()) {
             return;
@@ -75,12 +91,11 @@ public final class CameraViewCapture {
         if (mc.options.graphicsMode().get() == GraphicsStatus.FABULOUS) {
             if (!fabulousWarned) {
                 fabulousWarned = true;
-                LumaVisionMod.LOGGER.warn("Camera world capture is skipped in Fabulous graphics mode "
-                        + "(uses extra render targets); switch to Fancy/Fast for live camera video. Falling back to test pattern.");
+                LumaVisionMod.LOGGER.warn("Camera world capture is skipped in Fabulous graphics mode; "
+                        + "switch to Fancy/Fast for live camera video. Falling back to test pattern.");
                 if (mc.player != null) {
                     mc.player.displayClientMessage(net.minecraft.network.chat.Component.literal(
-                            "[LumaVision] Camera video needs Fancy or Fast graphics (Fabulous isn't supported yet) — "
-                                    + "set Video Settings > Graphics, then rejoin. Showing test pattern for now."), false);
+                            "[LumaVision] Camera video needs Fancy or Fast graphics (Fabulous isn't supported yet)."), false);
                 }
             }
             return;
@@ -105,12 +120,23 @@ public final class CameraViewCapture {
             if (t.rt != null) {
                 t.rt.destroyBuffers();
             }
-            // Use MainTarget (not TextureTarget) so post-processing mods that enhance the main render
-            // target (e.g. Shimmer's IMainTarget) can cast getMainRenderTarget() during renderLevel.
             t.rt = new MainTarget(w, h);
             t.readBuffer = ByteBuffer.allocateDirect(w * h * 4).order(ByteOrder.nativeOrder());
             t.w = w;
             t.h = h;
+        }
+        int viewDistance = mc.options.getEffectiveRenderDistance();
+        if (t.viewArea == null || t.viewDistance != viewDistance) {
+            if (t.viewArea != null) {
+                t.viewArea.releaseAllBuffers();
+            }
+            t.viewArea = new ViewArea(mc.levelRenderer.getChunkRenderDispatcher(), mc.level, viewDistance, mc.levelRenderer);
+            t.renderChunks = new ObjectArrayList<>();
+            t.viewDistance = viewDistance;
+            t.needsFullUpdate = true;
+            t.lastChunkX = Integer.MIN_VALUE;
+            t.lastChunkY = Integer.MIN_VALUE;
+            t.lastChunkZ = Integer.MIN_VALUE;
         }
         t.lastCaptureNs = now;
 
@@ -123,10 +149,18 @@ public final class CameraViewCapture {
         }
     }
 
+    @SuppressWarnings({"unchecked", "rawtypes"})
     private void renderCameraView(Minecraft mc, Target t, CameraSnapshot snapshot, float partialTick) {
-        // Only the main render target is temporarily redirected; the camera used is our own dedicated
-        // instance, so the game's main camera state is never touched (that previously bobbed the view).
+        LevelRenderer lr = mc.levelRenderer;
         RenderTarget previousTarget = mc.mainRenderTarget; // access-transformed to public
+
+        // --- save the player's chunk-render state ---
+        ViewArea pViewArea = lr.viewArea;
+        ObjectArrayList pRenderChunks = lr.renderChunksInFrustum;
+        Frustum pCulling = lr.cullingFrustum;
+        boolean pNeedsFull = lr.needsFullRenderChunkUpdate;
+        double pLastX = lr.lastCameraX, pLastY = lr.lastCameraY, pLastZ = lr.lastCameraZ;
+        int pLastCX = lr.lastCameraChunkX, pLastCY = lr.lastCameraChunkY, pLastCZ = lr.lastCameraChunkZ;
 
         Marker marker = new Marker(EntityType.MARKER, mc.level);
         double ex = snapshot.x() + 0.5D;
@@ -141,8 +175,19 @@ public final class CameraViewCapture {
         marker.yRotO = snapshot.yaw();
         marker.xRotO = snapshot.pitch();
 
-        mc.renderBuffers().bufferSource().endBatch(); // flush any batched geometry from the main frame
+        mc.renderBuffers().bufferSource().endBatch();
         mc.mainRenderTarget = t.rt;
+
+        // --- swap in the camera's chunk-render state ---
+        lr.viewArea = t.viewArea;
+        lr.renderChunksInFrustum = (ObjectArrayList) t.renderChunks;
+        lr.needsFullRenderChunkUpdate = t.needsFullUpdate;
+        lr.lastCameraX = t.lastX;
+        lr.lastCameraY = t.lastY;
+        lr.lastCameraZ = t.lastZ;
+        lr.lastCameraChunkX = t.lastChunkX;
+        lr.lastCameraChunkY = t.lastChunkY;
+        lr.lastCameraChunkZ = t.lastChunkZ;
 
         try {
             t.rt.clear(Minecraft.ON_OSX);
@@ -161,37 +206,47 @@ public final class CameraViewCapture {
             Matrix3f inverseView = new Matrix3f(poseStack.last().normal()).invert();
             RenderSystem.setInverseViewRotationMatrix(inverseView);
 
-            // Force a chunk-visibility recompute for THIS camera's viewpoint. Without it, renderLevel
-            // reuses the visible-section set computed for the player's view, so chunks the player isn't
-            // looking at render as black voids in the camera feed.
-            mc.levelRenderer.needsUpdate();
-            mc.levelRenderer.prepareCullFrustum(poseStack, captureCamera.getPosition(), projection);
-            mc.levelRenderer.renderLevel(poseStack, partialTick, 0L, false, captureCamera, mc.gameRenderer,
+            lr.prepareCullFrustum(poseStack, captureCamera.getPosition(), projection);
+            lr.renderLevel(poseStack, partialTick, 0L, false, captureCamera, mc.gameRenderer,
                     mc.gameRenderer.lightTexture(), projection);
 
-            mc.renderBuffers().bufferSource().endBatch(); // flush our camera render
+            mc.renderBuffers().bufferSource().endBatch();
             t.rt.unbindWrite();
         } finally {
+            // --- save the camera's updated state back, then restore the player's ---
+            t.needsFullUpdate = lr.needsFullRenderChunkUpdate;
+            t.lastX = lr.lastCameraX;
+            t.lastY = lr.lastCameraY;
+            t.lastZ = lr.lastCameraZ;
+            t.lastChunkX = lr.lastCameraChunkX;
+            t.lastChunkY = lr.lastCameraChunkY;
+            t.lastChunkZ = lr.lastCameraChunkZ;
+
+            lr.viewArea = pViewArea;
+            lr.renderChunksInFrustum = pRenderChunks;
+            lr.cullingFrustum = pCulling;
+            lr.needsFullRenderChunkUpdate = pNeedsFull;
+            lr.lastCameraX = pLastX;
+            lr.lastCameraY = pLastY;
+            lr.lastCameraZ = pLastZ;
+            lr.lastCameraChunkX = pLastCX;
+            lr.lastCameraChunkY = pLastCY;
+            lr.lastCameraChunkZ = pLastCZ;
+
             mc.mainRenderTarget = previousTarget;
             marker.discard();
             mc.getMainRenderTarget().bindWrite(true);
-            // Our capture recomputed chunk visibility for the camera; force the player's next frame to
-            // recompute for ITS own viewpoint so the camera never corrupts the player's view.
-            mc.levelRenderer.needsUpdate();
         }
     }
 
     private byte[] readback(Target t) {
         ByteBuffer buf = t.readBuffer;
         buf.clear();
-        // Read the target's own colour texture directly (not glReadPixels, which reads whatever
-        // framebuffer is currently bound — that was capturing the main screen + HUD instead).
         GlStateManager._bindTexture(t.rt.getColorTextureId());
         GL11.glPixelStorei(GL11.GL_PACK_ALIGNMENT, 1);
         GL11.glGetTexImage(GL11.GL_TEXTURE_2D, 0, GL12.GL_BGRA, GL11.GL_UNSIGNED_BYTE, buf);
         GlStateManager._bindTexture(0);
 
-        // The texture is stored bottom-to-top; NDI wants top-to-bottom, so flip while copying out.
         int rowBytes = t.w * 4;
         byte[] out = new byte[rowBytes * t.h];
         for (int y = 0; y < t.h; y++) {
@@ -204,18 +259,24 @@ public final class CameraViewCapture {
     /** Must run on the render thread (destroys GL buffers). */
     public void clear() {
         for (Target t : targets.values()) {
-            if (t.rt != null) {
-                t.rt.destroyBuffers();
-            }
+            releaseTarget(t);
         }
         targets.clear();
     }
 
-    /** Drops a single camera's render target (e.g. when it unloads). */
     public void remove(BlockPos pos) {
         Target t = targets.remove(pos);
-        if (t != null && t.rt != null) {
+        if (t != null) {
+            releaseTarget(t);
+        }
+    }
+
+    private void releaseTarget(Target t) {
+        if (t.rt != null) {
             t.rt.destroyBuffers();
+        }
+        if (t.viewArea != null) {
+            t.viewArea.releaseAllBuffers();
         }
     }
 }
