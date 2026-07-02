@@ -60,9 +60,9 @@ public final class SeatOperator {
             return;
         }
 
-        // Send arm/zoom input to the server.
-        float forward = player.zza;
-        float strafe = player.xxa;
+        // Send arm/zoom input to the server. Read player.input (live keys) — zza/xxa stay 0 while riding.
+        float forward = player.input.forwardImpulse;
+        float strafe = player.input.leftImpulse;
         float scroll = pendingScroll;
         pendingScroll = 0.0F;
         if (forward != 0.0F || strafe != 0.0F || scroll != 0.0F) {
