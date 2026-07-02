@@ -161,6 +161,10 @@ public final class CameraViewCapture {
             Matrix3f inverseView = new Matrix3f(poseStack.last().normal()).invert();
             RenderSystem.setInverseViewRotationMatrix(inverseView);
 
+            // Force a chunk-visibility recompute for THIS camera's viewpoint. Without it, renderLevel
+            // reuses the visible-section set computed for the player's view, so chunks the player isn't
+            // looking at render as black voids in the camera feed.
+            mc.levelRenderer.needsUpdate();
             mc.levelRenderer.prepareCullFrustum(poseStack, captureCamera.getPosition(), projection);
             mc.levelRenderer.renderLevel(poseStack, partialTick, 0L, false, captureCamera, mc.gameRenderer,
                     mc.gameRenderer.lightTexture(), projection);
