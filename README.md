@@ -13,7 +13,7 @@
 [![Java](https://img.shields.io/badge/Java-17-red?style=for-the-badge&logo=openjdk&logoColor=white)](https://adoptium.net/)
 [![License](https://img.shields.io/badge/License-MIT-blue?style=for-the-badge)](LICENSE)
 
-[Features](#-features) · [Roadmap](#-roadmap) · [Installation](#-installation) · [Development](#-development) · [Architecture](#-architecture) · [Contributing](#-contributing)
+[Features](#-features) · [Roadmap](#-roadmap) · [Installation](#-installation) · [Cameras](#-cameras) · [Merged PRs](#-merged-pull-requests) · [Development](#-development) · [Architecture](#-architecture) · [Contributing](#-contributing)
 
 </div>
 
@@ -44,15 +44,15 @@ The mod is built for long-term growth: a clean rendering pipeline, extensible co
 | 🎥 **PTZ / rails / crane** | ✅ | NDI PTZ control, dolly rails, boom seat, and a full 3D camera crane |
 | 🖥️ **Dynamic rendering** | ✅ | Test pattern fallback + NDI live video |
 | 🏗️ **Video pipeline** | ✅ | `VideoSource` → `VideoFrame` → `DynamicTexture` → `ScreenRenderer` |
+| ⚡ **NDI & display optimizations** | ✅ | Dynamic LOD, FPS caps, triple buffering, RGBX ingest, skip redundant uploads, merged-wall single quad, color grading LUT |
 | 📦 **Registries** | ✅ | Blocks, items, block entities, creative tab |
-| ⚙️ **Configuration** | ✅ | Common config via `lumavision-common.toml` |
-| 🌐 **Networking** | 🔧 | Hook in place — packets not implemented yet |
+| ⚙️ **Configuration** | ✅ | Common config via `lumavison-common.toml` |
+| 🌐 **Networking** | 🔧 | Screen source + camera packets (PTZ, rig, live state) |
 
 ### Not yet available
 
 - 🎬 Video / image file playback
 - 🔄 Multiplayer content synchronization
-- ⚡ Advanced rendering optimizations
 
 ---
 
@@ -65,7 +65,7 @@ The mod is built for long-term growth: a clean rendering pipeline, extensible co
 | **3** | Static images & video file playback | 🟡 Next |
 | **4** | NDI / live stream support | 🟢 Done (v1) |
 | **5** | Network synchronization (server ↔ clients) | ⚪ Planned |
-| **6** | Rendering & memory optimizations | ⚪ Planned |
+| **6** | Rendering & memory optimizations | 🟡 In progress (PR #1) |
 
 ---
 
@@ -417,6 +417,7 @@ You are free to use, modify, and distribute this software with minimal restricti
 | | |
 |---|---|
 | **Author** | [Nailec](https://github.com/naileclevrai) |
+| **Contributors** | [mici1708](https://github.com/mici1708) — NDI pipeline optimizations ([PR #1](https://github.com/naileclevrai/lumavison-mod/pull/1)) · [nanocodium](https://github.com/nanocodium) — Virtual Camera Stage ([PR #3](https://github.com/naileclevrai/lumavison-mod/pull/3)) |
 | **Project** | [lumavison-mod](https://github.com/naileclevrai/lumavison-mod) |
 | **Platform** | [Minecraft Forge](https://minecraftforge.net/) |
 | **Inspiration** | Stage & concert setups in Minecraft |

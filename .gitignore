@@ -17,3 +17,5 @@ classes/
 .settings/
 *.launch
 !gradle/wrapper/gradle-wrapper.jar
+com/lowdragmc/shimmer/client/light/ColorPointLight.class
+com/lowdragmc/shimmer/client/light/LightManager.class
