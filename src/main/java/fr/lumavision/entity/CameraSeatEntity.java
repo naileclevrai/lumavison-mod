@@ -70,23 +70,29 @@ public class CameraSeatEntity extends Entity {
     }
 
     /**
-     * Finds the camera this seat operates: walks up the boom column from the seat and returns the
-     * position of the first camera block entity sitting on top, or null.
+     * Finds the camera this seat operates: the nearest camera block entity within a radius of the seat.
+     * Returns null if none is nearby. (Called once when mounting, then cached.)
      */
-    public static BlockPos findControlledCamera(Level level, BlockPos boomPos) {
-        BlockPos cursor = boomPos;
-        for (int i = 0; i < 16; i++) {
-            BlockPos up = cursor.above();
-            if (level.getBlockEntity(up) instanceof CameraBlockEntity) {
-                return up;
+    public static BlockPos findControlledCamera(Level level, BlockPos origin) {
+        int radius = 12;
+        BlockPos best = null;
+        int bestDistSq = Integer.MAX_VALUE;
+        BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
+        for (int dx = -radius; dx <= radius; dx++) {
+            for (int dy = -radius; dy <= radius; dy++) {
+                for (int dz = -radius; dz <= radius; dz++) {
+                    cursor.set(origin.getX() + dx, origin.getY() + dy, origin.getZ() + dz);
+                    if (level.getBlockEntity(cursor) instanceof CameraBlockEntity) {
+                        int distSq = dx * dx + dy * dy + dz * dz;
+                        if (distSq < bestDistSq) {
+                            bestDistSq = distSq;
+                            best = cursor.immutable();
+                        }
+                    }
+                }
             }
-            if (level.getBlockState(up).is(fr.lumavision.registry.ModBlocks.CAMERA_BOOM.get())) {
-                cursor = up;
-                continue;
-            }
-            break;
         }
-        return null;
+        return best;
     }
 
     @Override

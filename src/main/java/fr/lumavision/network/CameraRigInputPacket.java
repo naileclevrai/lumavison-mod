@@ -17,8 +17,8 @@ import java.util.function.Supplier;
  */
 public record CameraRigInputPacket(BlockPos cameraPos, float forward, float strafe, float scroll) {
 
-    private static final float PAN_PER_TICK = 4.0F;
-    private static final float TILT_PER_TICK = 3.0F;
+    private static final float SWING_PER_TICK = 3.0F;
+    private static final float BOOM_PER_TICK = 2.5F;
     private static final float ZOOM_PER_NOTCH = 8.0F;
 
     public static void encode(CameraRigInputPacket packet, FriendlyByteBuf buffer) {
@@ -52,9 +52,10 @@ public record CameraRigInputPacket(BlockPos cameraPos, float forward, float stra
         if (!(be instanceof CameraBlockEntity camera)) {
             return;
         }
-        // strafe A/D -> pan; forward W/S -> tilt (up = negative pitch); scroll -> zoom (fov).
-        camera.parameters().setPan(camera.parameters().pan() - packet.strafe() * PAN_PER_TICK);
-        camera.parameters().setTilt(camera.parameters().tilt() - packet.forward() * TILT_PER_TICK);
+        // Move the crane arm: A/D swings the arm, W/S booms it up/down; scroll zooms.
+        // (Arm reach is set by how many boom blocks are stacked under the camera, not here.)
+        camera.parameters().setBoomSwing(camera.parameters().boomSwing() - packet.strafe() * SWING_PER_TICK);
+        camera.parameters().setBoomPitch(camera.parameters().boomPitch() + packet.forward() * BOOM_PER_TICK);
         if (packet.scroll() != 0.0F) {
             camera.parameters().setFov(camera.parameters().fov() - packet.scroll() * ZOOM_PER_NOTCH);
         }

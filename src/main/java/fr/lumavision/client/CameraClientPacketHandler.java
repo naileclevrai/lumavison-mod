@@ -28,6 +28,9 @@ public final class CameraClientPacketHandler {
             camera.parameters().setTilt(packet.tilt());
             camera.parameters().setFov(packet.fov());
             camera.parameters().setTrackPosition(packet.trackPos());
+            camera.parameters().setBoomSwing(packet.boomSwing());
+            camera.parameters().setBoomPitch(packet.boomPitch());
+            camera.parameters().setBoomLength(packet.boomLength());
         }
     }
 }

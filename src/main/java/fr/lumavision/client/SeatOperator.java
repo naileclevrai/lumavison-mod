@@ -3,7 +3,7 @@ package fr.lumavision.client;
 import fr.lumavision.LumaVisionMod;
 import fr.lumavision.block.CameraBlock;
 import fr.lumavision.blockentity.CameraBlockEntity;
-import fr.lumavision.camera.CameraParameters;
+import fr.lumavision.camera.CameraRig;
 import fr.lumavision.entity.CameraSeatEntity;
 import fr.lumavision.network.CameraRigInputPacket;
 import fr.lumavision.network.ModNetworking;
@@ -12,6 +12,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.ClientPlayerNetworkEvent;
@@ -22,15 +23,16 @@ import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 
 /**
- * Client-side camera-operator experience while sitting in a boom seat: the player's view becomes the
- * controlled camera's first-person view, WASD drives pan/tilt and the scroll wheel zooms, all sent to
- * the server which owns the parameters. Restores the normal view on dismount.
+ * Client-side crane operator: while sitting on a boom seat near a camera, the player's view becomes
+ * the camera's shot from the end of the crane arm, WASD swings/booms the arm and the scroll wheel
+ * zooms. Input is sent to the server (owner of the parameters); the view + FOV follow the camera.
  */
 @Mod.EventBusSubscriber(modid = LumaVisionMod.MOD_ID, bus = Mod.EventBusSubscriber.Bus.FORGE, value = Dist.CLIENT)
 public final class SeatOperator {
 
     private static float pendingScroll;
     private static Entity viewAnchor;
+    private static BlockPos controlledCamera;
     private static boolean operating;
 
     private SeatOperator() {
@@ -43,37 +45,42 @@ public final class SeatOperator {
         }
         Minecraft mc = Minecraft.getInstance();
         LocalPlayer player = mc.player;
-        CameraBlockEntity camera = player != null && mc.level != null
-                && player.getVehicle() instanceof CameraSeatEntity seat
-                ? findCamera(mc, seat) : null;
+        if (player == null || mc.level == null || !(player.getVehicle() instanceof CameraSeatEntity seat)) {
+            stopOperating(mc);
+            return;
+        }
 
+        if (controlledCamera == null) {
+            controlledCamera = CameraSeatEntity.findControlledCamera(mc.level, seat.blockPosition());
+        }
+        CameraBlockEntity camera = controlledCamera != null
+                && mc.level.getBlockEntity(controlledCamera) instanceof CameraBlockEntity c ? c : null;
         if (camera == null) {
             stopOperating(mc);
             return;
         }
 
-        BlockPos camPos = camera.getBlockPos();
+        // Send arm/zoom input to the server.
         float forward = player.zza;
         float strafe = player.xxa;
         float scroll = pendingScroll;
         pendingScroll = 0.0F;
         if (forward != 0.0F || strafe != 0.0F || scroll != 0.0F) {
-            ModNetworking.CHANNEL.sendToServer(new CameraRigInputPacket(camPos, forward, strafe, scroll));
+            ModNetworking.CHANNEL.sendToServer(new CameraRigInputPacket(controlledCamera, forward, strafe, scroll));
         }
 
-        // Move the player's view to the camera (first person through the lens).
-        CameraParameters p = camera.parameters();
-        BlockState state = camera.getBlockState();
-        float baseYaw = state.hasProperty(CameraBlock.FACING) ? state.getValue(CameraBlock.FACING).toYRot() : 0.0F;
+        // Put the player's view at the arm tip, looking where the camera looks.
+        int reach = CameraRig.boomReach(mc.level, controlledCamera);
+        CameraRig.View view = CameraRig.compute(controlledCamera, baseYaw(camera), camera.parameters(), reach);
         if (viewAnchor == null) {
             viewAnchor = new CameraSeatEntity(ModEntities.CAMERA_SEAT.get(), mc.level);
         }
-        viewAnchor.setPos(camPos.getX() + 0.5D, camPos.getY() + 0.5D - viewAnchor.getEyeHeight(), camPos.getZ() + 0.5D);
+        viewAnchor.setPos(view.x(), view.y() - viewAnchor.getEyeHeight(), view.z());
         viewAnchor.xo = viewAnchor.getX();
         viewAnchor.yo = viewAnchor.getY();
         viewAnchor.zo = viewAnchor.getZ();
-        viewAnchor.setYRot(baseYaw + p.pan());
-        viewAnchor.setXRot(p.tilt());
+        viewAnchor.setYRot(view.yaw());
+        viewAnchor.setXRot(view.pitch());
         viewAnchor.yRotO = viewAnchor.getYRot();
         viewAnchor.xRotO = viewAnchor.getXRot();
         if (mc.getCameraEntity() != viewAnchor) {
@@ -93,15 +100,12 @@ public final class SeatOperator {
 
     @SubscribeEvent
     public static void onComputeFov(ViewportEvent.ComputeFov event) {
-        if (!operating) {
+        if (!operating || controlledCamera == null) {
             return;
         }
         Minecraft mc = Minecraft.getInstance();
-        if (mc.player != null && mc.level != null && mc.player.getVehicle() instanceof CameraSeatEntity seat) {
-            CameraBlockEntity camera = findCamera(mc, seat);
-            if (camera != null) {
-                event.setFOV(camera.parameters().effectiveFov());
-            }
+        if (mc.level != null && mc.level.getBlockEntity(controlledCamera) instanceof CameraBlockEntity camera) {
+            event.setFOV(camera.parameters().effectiveFov());
         }
     }
 
@@ -109,19 +113,18 @@ public final class SeatOperator {
     public static void onLogout(ClientPlayerNetworkEvent.LoggingOut event) {
         operating = false;
         viewAnchor = null;
+        controlledCamera = null;
     }
 
-    private static CameraBlockEntity findCamera(Minecraft mc, CameraSeatEntity seat) {
-        BlockPos camPos = CameraSeatEntity.findControlledCamera(mc.level, seat.blockPosition());
-        if (camPos != null && mc.level.getBlockEntity(camPos) instanceof CameraBlockEntity camera) {
-            return camera;
-        }
-        return null;
+    private static float baseYaw(CameraBlockEntity camera) {
+        BlockState state = camera.getBlockState();
+        return state.hasProperty(CameraBlock.FACING) ? state.getValue(CameraBlock.FACING).toYRot() : 0.0F;
     }
 
     private static void stopOperating(Minecraft mc) {
-        if (operating) {
+        if (operating || controlledCamera != null) {
             operating = false;
+            controlledCamera = null;
             viewAnchor = null;
             if (mc.player != null && mc.getCameraEntity() != mc.player) {
                 mc.setCameraEntity(mc.player);

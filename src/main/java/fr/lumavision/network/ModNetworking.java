@@ -88,6 +88,7 @@ public final class ModNetworking {
         CHANNEL.send(
                 PacketDistributor.TRACKING_CHUNK.with(() -> level.getChunkAt(pos)),
                 new CameraLiveStatePacket(pos, parameters.pan(), parameters.tilt(),
-                        parameters.fov(), parameters.trackPosition()));
+                        parameters.fov(), parameters.trackPosition(),
+                        parameters.boomSwing(), parameters.boomPitch(), parameters.boomLength()));
     }
 }

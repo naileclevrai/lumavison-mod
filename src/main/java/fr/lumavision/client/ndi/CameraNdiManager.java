@@ -193,21 +193,29 @@ public final class CameraNdiManager {
         float baseYaw = state.hasProperty(CameraBlock.FACING) ? state.getValue(CameraBlock.FACING).toYRot() : 0.0F;
         String name = p.ndiSourceName().isEmpty() ? CameraBlockEntity.defaultSourceName(pos) : p.ndiSourceName();
 
-        // Render position = block centre, or interpolated along a rail run beneath the camera (dolly).
-        double rx = pos.getX() + 0.5D;
-        double ry = pos.getY() + 0.5D;
-        double rz = pos.getZ() + 0.5D;
-        if (be.getLevel() != null) {
-            net.minecraft.world.phys.Vec3 dolly =
-                    fr.lumavision.block.RailTrack.resolve(be.getLevel(), pos, p.trackPosition());
-            if (dolly != null) {
-                rx = dolly.x;
-                ry = dolly.y;
-                rz = dolly.z;
+        // Crane arm: reach = number of boom blocks stacked under the camera; shoot from the arm end.
+        // Otherwise: block centre or rail dolly, aimed by pan/tilt.
+        int reach = be.getLevel() != null ? fr.lumavision.camera.CameraRig.boomReach(be.getLevel(), pos) : 0;
+        fr.lumavision.camera.CameraRig.View view;
+        if (reach > 0) {
+            view = fr.lumavision.camera.CameraRig.compute(pos, baseYaw, p, reach);
+        } else {
+            double rx = pos.getX() + 0.5D;
+            double ry = pos.getY() + 0.5D;
+            double rz = pos.getZ() + 0.5D;
+            if (be.getLevel() != null) {
+                net.minecraft.world.phys.Vec3 dolly =
+                        fr.lumavision.block.RailTrack.resolve(be.getLevel(), pos, p.trackPosition());
+                if (dolly != null) {
+                    rx = dolly.x;
+                    ry = dolly.y;
+                    rz = dolly.z;
+                }
             }
+            view = new fr.lumavision.camera.CameraRig.View(rx, ry, rz, baseYaw + p.pan(), p.tilt());
         }
 
         return new CameraSnapshot(name, p.resolutionWidth(), p.resolutionHeight(), p.fps(),
-                rx, ry, rz, baseYaw + p.pan(), p.tilt(), p.effectiveFov(), p.pan());
+                view.x(), view.y(), view.z(), view.yaw(), view.pitch(), p.effectiveFov(), p.pan());
     }
 }
