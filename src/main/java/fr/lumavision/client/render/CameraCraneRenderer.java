@@ -52,9 +52,9 @@ public final class CameraCraneRenderer implements BlockEntityRenderer<CameraBloc
         CameraParameters p = be.parameters();
         float baseYaw = state.hasProperty(CameraBlock.FACING) ? state.getValue(CameraBlock.FACING).toYRot() : 0.0F;
 
-        // Aim the whole arm where the shot points; boom it up/down. (Signs are a first pass — tune to view.)
-        turntable.yRot = (float) Math.toRadians(180.0F - (baseYaw + p.boomSwing()));
-        arm.xRot = (float) Math.toRadians(-p.boomPitch());
+        // Aim the arm where the shot actually comes from (was 180° off), boom up when pitch rises.
+        turntable.yRot = (float) Math.toRadians(-(baseYaw + p.boomSwing()));
+        arm.xRot = (float) Math.toRadians(p.boomPitch());
         // Only show the camera head on the arm end once a camera has actually been mounted.
         head.visible = state.getValue(CameraCraneBlock.MOUNTED);
 
