@@ -83,6 +83,16 @@ public final class CameraNdiManager {
             existing.update(snapshot);
         }
         lastSeen.put(pos, clientTick);
+
+        // Forward any NDI PTZ command received on this client to the server (authoritative).
+        CameraNdiSender sender = senders.get(pos);
+        if (sender != null) {
+            float[] ptz = sender.pollPtz();
+            if (ptz != null) {
+                fr.lumavision.network.ModNetworking.CHANNEL.sendToServer(
+                        new fr.lumavision.network.CameraPtzInputPacket(pos, ptz[0], ptz[1], ptz[2]));
+            }
+        }
     }
 
     /** Called once per client tick to reap senders whose camera stopped ticking. */
@@ -183,6 +193,6 @@ public final class CameraNdiManager {
         float baseYaw = state.hasProperty(CameraBlock.FACING) ? state.getValue(CameraBlock.FACING).toYRot() : 0.0F;
         String name = p.ndiSourceName().isEmpty() ? CameraBlockEntity.defaultSourceName(pos) : p.ndiSourceName();
         return new CameraSnapshot(name, p.resolutionWidth(), p.resolutionHeight(), p.fps(),
-                pos.getX(), pos.getY(), pos.getZ(), baseYaw + p.pan(), p.tilt(), p.effectiveFov());
+                pos.getX(), pos.getY(), pos.getZ(), baseYaw + p.pan(), p.tilt(), p.effectiveFov(), p.pan());
     }
 }

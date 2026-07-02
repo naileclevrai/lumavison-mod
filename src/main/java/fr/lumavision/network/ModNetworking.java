@@ -64,6 +64,14 @@ public final class ModNetworking {
                 CameraLiveStatePacket::handle,
                 Optional.of(NetworkDirection.PLAY_TO_CLIENT)
         );
+        CHANNEL.registerMessage(
+                nextPacketId++,
+                CameraPtzInputPacket.class,
+                CameraPtzInputPacket::encode,
+                CameraPtzInputPacket::decode,
+                CameraPtzInputPacket::handle,
+                Optional.of(NetworkDirection.PLAY_TO_SERVER)
+        );
         LumaVisionMod.LOGGER.debug("LumaVision networking ready (protocol v{})", PROTOCOL_VERSION);
     }
 

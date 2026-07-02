@@ -10,5 +10,5 @@ import net.minecraftforge.api.distmarker.OnlyIn;
  */
 @OnlyIn(Dist.CLIENT)
 public record CameraSnapshot(String name, int width, int height, int fps,
-                             int x, int y, int z, float yaw, float pitch, float fov) {
+                             int x, int y, int z, float yaw, float pitch, float fov, float pan) {
 }
