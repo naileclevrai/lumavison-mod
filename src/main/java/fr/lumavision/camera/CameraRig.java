@@ -51,17 +51,23 @@ public final class CameraRig {
         double yawRad = Math.toRadians(armYaw);
         double pitchRad = Math.toRadians(p.boomPitch());
         double horiz = Math.cos(pitchRad) * CRANE_ARM_LENGTH;
+        // Matches the rendered arm exactly (derived from the model transform: the -Z flip in the
+        // renderer puts the tip at -cos, not +cos), so the hung camera lands on the arm end.
         double x = 0.5 - Math.sin(yawRad) * horiz;
-        double z = 0.5 + Math.cos(yawRad) * horiz;
+        double z = 0.5 - Math.cos(yawRad) * horiz;
         double y = CRANE_PIVOT_Y + Math.sin(pitchRad) * CRANE_ARM_LENGTH;
         return new double[]{x, y, z, armYaw};
     }
 
-    /** The shot for a crane: from the camera hanging off the arm tip, aimed by swing (+pan) / tilt. */
+    /**
+     * The shot for a crane: from the camera hanging off the arm tip, looking outward along the arm
+     * (away from the base) — which is yaw {@code 180 − armYaw} for the rendered geometry — plus pan.
+     */
     public static View craneView(BlockPos pos, float baseYaw, CameraParameters p) {
         double[] tip = craneTipRelative(baseYaw, p);
         double camY = pos.getY() + tip[1] - CRANE_CAMERA_DROP;
-        return new View(pos.getX() + tip[0], camY, pos.getZ() + tip[2], (float) tip[3] + p.pan(), p.tilt());
+        float lookYaw = 180.0F - (float) tip[3] + p.pan();
+        return new View(pos.getX() + tip[0], camY, pos.getZ() + tip[2], lookYaw, p.tilt());
     }
 
     /** Number of camera_boom blocks stacked directly under the camera = the crane arm reach. */
