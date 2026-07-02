@@ -156,6 +156,12 @@ public final class CameraNdiManager {
             runtimeAvailable = NdiRuntime.init();
             if (!runtimeAvailable) {
                 LumaVisionMod.LOGGER.warn("NDI camera output unavailable: {}", NdiRuntime.getFailureReason());
+            } else {
+                Minecraft mc = Minecraft.getInstance();
+                if (mc.player != null) {
+                    mc.player.displayClientMessage(Component.literal(
+                            "[LumaVision] NDI runtime loaded: " + NdiRuntime.getVersion()), false);
+                }
             }
         }
         if (!runtimeAvailable && !unavailableAnnounced) {
