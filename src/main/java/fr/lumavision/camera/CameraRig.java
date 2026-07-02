@@ -73,7 +73,8 @@ public final class CameraRig {
         double z = cz + Math.cos(yawRad) * horiz;
         double y = cy + Math.sin(pitchRad) * length;
 
-        // Camera on the arm end looks outward along the swing, tilting down as the arm rises.
-        return new View(x, y, z, armYaw, p.boomPitch());
+        // The arm booms up/down to *move* the camera; its aim is independent — it keeps looking
+        // outward along the swing (level by default), tilted only by the configured/PTZ pan+tilt.
+        return new View(x, y, z, armYaw + p.pan(), p.tilt());
     }
 }

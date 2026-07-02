@@ -156,7 +156,8 @@ public final class CameraParameters {
     }
 
     public void setBoomPitch(float degrees) {
-        this.boomPitch = Mth.clamp(degrees, -30.0F, 85.0F);
+        // Arm elevation only rises from horizontal — never dips below (would bury the tip underground).
+        this.boomPitch = Mth.clamp(degrees, 0.0F, 85.0F);
     }
 
     public float boomLength() {
