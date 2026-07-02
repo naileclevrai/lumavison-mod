@@ -175,6 +175,9 @@ public final class CameraViewCapture {
             mc.mainRenderTarget = previousTarget;
             marker.discard();
             mc.getMainRenderTarget().bindWrite(true);
+            // Our capture recomputed chunk visibility for the camera; force the player's next frame to
+            // recompute for ITS own viewpoint so the camera never corrupts the player's view.
+            mc.levelRenderer.needsUpdate();
         }
     }
 
