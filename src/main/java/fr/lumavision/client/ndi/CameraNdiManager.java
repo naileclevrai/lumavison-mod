@@ -122,6 +122,14 @@ public final class CameraNdiManager {
         if (captureFailureLogged.add(pos)) {
             LumaVisionMod.LOGGER.error("Camera world capture failed at {} (falling back to test pattern): {}",
                     pos, error.toString(), error);
+            StackTraceElement[] trace = error.getStackTrace();
+            String where = trace.length > 0 ? " @ " + trace[0] : "";
+            Minecraft mc = Minecraft.getInstance();
+            if (mc.player != null) {
+                mc.player.displayClientMessage(Component.literal(
+                        "[LumaVision] Camera render failed: " + error.getClass().getSimpleName()
+                                + ": " + error.getMessage() + where), false);
+            }
         }
     }
 

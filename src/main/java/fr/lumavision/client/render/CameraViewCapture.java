@@ -77,6 +77,11 @@ public final class CameraViewCapture {
                 fabulousWarned = true;
                 LumaVisionMod.LOGGER.warn("Camera world capture is skipped in Fabulous graphics mode "
                         + "(uses extra render targets); switch to Fancy/Fast for live camera video. Falling back to test pattern.");
+                if (mc.player != null) {
+                    mc.player.displayClientMessage(net.minecraft.network.chat.Component.literal(
+                            "[LumaVision] Camera video needs Fancy or Fast graphics (Fabulous isn't supported yet) — "
+                                    + "set Video Settings > Graphics, then rejoin. Showing test pattern for now."), false);
+                }
             }
             return;
         }
