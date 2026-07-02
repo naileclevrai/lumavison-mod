@@ -98,8 +98,11 @@ final class CameraNdiSender {
     }
 
     private void render(CameraSnapshot s) {
-        int w = Math.max(2, s.width());
-        int h = Math.max(2, s.height());
+        // Frame size follows the captured world view (rendered at the game framebuffer size); the
+        // configured resolution only sizes the test-pattern fallback until a real frame arrives.
+        Frame captured = capturedFrame.get();
+        int w = captured != null ? captured.w() : Math.max(2, s.width());
+        int h = captured != null ? captured.h() : Math.max(2, s.height());
         if (direct == null || bufW != w || bufH != h) {
             bufW = w;
             bufH = h;
@@ -113,10 +116,8 @@ final class CameraNdiSender {
         }
         frame.setFrameRate(Math.max(1, s.fps()), 1);
 
-        Frame captured = capturedFrame.get();
         direct.clear();
-        if (captured != null && captured.w() == w && captured.h() == h
-                && captured.data().length >= w * h * 4) {
+        if (captured != null && captured.data().length >= w * h * 4) {
             direct.put(captured.data(), 0, w * h * 4); // live world view
         } else {
             CameraTestPattern.fill(scratch, w, h, s, frameIndex); // fallback until a frame is captured
