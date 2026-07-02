@@ -62,30 +62,31 @@ public class CameraSeatEntity extends Entity {
     @Override
     public void tick() {
         super.tick();
-        if (level().isClientSide) {
-            return;
-        }
-        if (getPassengers().isEmpty()) {
+        // The operator drives the camera via client input (CameraRigInputPacket); the seat just holds
+        // the player and cleans itself up when they leave.
+        if (!level().isClientSide && getPassengers().isEmpty()) {
             discard();
-            return;
         }
-        if (!(getPassengers().get(0) instanceof Player player)) {
-            return;
+    }
+
+    /**
+     * Finds the camera this seat operates: walks up the boom column from the seat and returns the
+     * position of the first camera block entity sitting on top, or null.
+     */
+    public static BlockPos findControlledCamera(Level level, BlockPos boomPos) {
+        BlockPos cursor = boomPos;
+        for (int i = 0; i < 16; i++) {
+            BlockPos up = cursor.above();
+            if (level.getBlockEntity(up) instanceof CameraBlockEntity) {
+                return up;
+            }
+            if (level.getBlockState(up).is(fr.lumavision.registry.ModBlocks.CAMERA_BOOM.get())) {
+                cursor = up;
+                continue;
+            }
+            break;
         }
-        // Drive the camera sitting on top of the boom from the operator's look direction.
-        BlockPos cameraPos = blockPosition().above();
-        BlockEntity be = level().getBlockEntity(cameraPos);
-        if (!(be instanceof CameraBlockEntity camera)) {
-            return;
-        }
-        BlockState state = camera.getBlockState();
-        float baseYaw = state.hasProperty(CameraBlock.FACING) ? state.getValue(CameraBlock.FACING).toYRot() : 0.0F;
-        camera.parameters().setPan(Mth.wrapDegrees(player.getYRot() - baseYaw));
-        camera.parameters().setTilt(Mth.clamp(player.getXRot(), -90.0F, 90.0F));
-        camera.setChanged();
-        if (level() instanceof ServerLevel serverLevel) {
-            ModNetworking.sendCameraLiveState(serverLevel, cameraPos, camera.parameters());
-        }
+        return null;
     }
 
     @Override

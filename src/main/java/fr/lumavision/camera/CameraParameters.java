@@ -39,6 +39,11 @@ public final class CameraParameters {
     /** Normalized position along the mounted rail track, [0,1]. 0 = track origin when unmounted. */
     private float trackPosition;
 
+    // Jib/crane arm: the camera renders from the end of an arm pivoting at the boom.
+    private float boomSwing;   // degrees, arm yaw relative to the block facing
+    private float boomPitch;   // degrees, arm elevation (positive = up)
+    private float boomLength;  // blocks of reach; 0 = no arm (camera at the block)
+
     private final DmxPatch dmx = new DmxPatch();
 
     public CameraParameters() {
@@ -138,6 +143,30 @@ public final class CameraParameters {
         this.trackPosition = Mth.clamp(normalized, 0.0F, 1.0F);
     }
 
+    public float boomSwing() {
+        return boomSwing;
+    }
+
+    public void setBoomSwing(float degrees) {
+        this.boomSwing = Mth.wrapDegrees(degrees);
+    }
+
+    public float boomPitch() {
+        return boomPitch;
+    }
+
+    public void setBoomPitch(float degrees) {
+        this.boomPitch = Mth.clamp(degrees, -30.0F, 85.0F);
+    }
+
+    public float boomLength() {
+        return boomLength;
+    }
+
+    public void setBoomLength(float blocks) {
+        this.boomLength = Mth.clamp(blocks, 0.0F, 16.0F);
+    }
+
     public DmxPatch dmx() {
         return dmx;
     }
@@ -155,6 +184,9 @@ public final class CameraParameters {
         c.enabled = enabled;
         c.ndiSourceName = ndiSourceName;
         c.trackPosition = trackPosition;
+        c.boomSwing = boomSwing;
+        c.boomPitch = boomPitch;
+        c.boomLength = boomLength;
         copyDmxInto(c.dmx);
         return c;
     }
@@ -183,6 +215,9 @@ public final class CameraParameters {
         tag.putBoolean("Enabled", enabled);
         tag.putString("NdiName", ndiSourceName);
         tag.putFloat("TrackPos", trackPosition);
+        tag.putFloat("BoomSwing", boomSwing);
+        tag.putFloat("BoomPitch", boomPitch);
+        tag.putFloat("BoomLength", boomLength);
         dmx.save(tag);
         return tag;
     }
@@ -200,6 +235,9 @@ public final class CameraParameters {
         this.enabled = !tag.contains("Enabled") || tag.getBoolean("Enabled");
         this.ndiSourceName = tag.getString("NdiName");
         setTrackPosition(tag.getFloat("TrackPos"));
+        setBoomSwing(tag.getFloat("BoomSwing"));
+        setBoomPitch(tag.getFloat("BoomPitch"));
+        setBoomLength(tag.getFloat("BoomLength"));
         dmx.load(tag);
     }
 
