@@ -3,9 +3,11 @@ package fr.lumavision.network;
 import fr.lumavision.LumaVisionMod;
 import fr.lumavision.blockentity.LedScreenBlockEntity;
 import fr.lumavision.screen.ScreenWallPermissions;
+import fr.lumavision.server.MediaRelayManager;
 import fr.lumavision.video.VideoSourceDescriptors;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntity;
@@ -67,5 +69,8 @@ public record SetScreenSourcePacket(BlockPos groupOrigin, String sourceId) {
         screen.setSourceId(packet.sourceId().trim());
         screen.setChanged();
         player.level().sendBlockUpdated(origin, screen.getBlockState(), screen.getBlockState(), Block.UPDATE_ALL);
+        if (player.level() instanceof ServerLevel serverLevel) {
+            MediaRelayManager.getInstance().onWallSourceChanged(serverLevel, origin);
+        }
     }
 }

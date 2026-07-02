@@ -27,10 +27,14 @@ import org.joml.Matrix3f;
 import org.joml.Matrix4f;
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL12;
+import org.lwjgl.opengl.GL15;
+import org.lwjgl.opengl.GL30;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -42,9 +46,17 @@ import java.util.Map;
  * capture we swap the {@link LevelRenderer}'s chunk-render state to the camera's and restore the
  * player's afterward, so cameras render independently and never corrupt the player's view.
  *
- * <p>The camera renders at the game framebuffer size: post-processing mods (e.g. Shimmer) bind
- * window-sized buffers mid-{@code renderLevel} and reset the viewport to the window size, so matching
- * that size is what makes the whole frame render instead of a window-sized corner.
+ * <p>The camera renders at the configured output resolution (see {@code cameraUseConfiguredResolution})
+ * rather than the game window when possible, to keep game FPS acceptable. Post-processing mods that
+ * reset the viewport to the window size (Shimmer) can misalign blocks at reduced resolution — restore
+ * the viewport after {@code renderLevel} and set {@code cameraUseConfiguredResolution} to false if needed.
+ *
+ * <p>Pixel readback is asynchronous via double-buffered Pixel Buffer Objects (PBO): the copy is
+ * issued into a PBO (non-blocking) and mapped on the next capture, so the render thread never
+ * stalls waiting for the GPU. This costs one capture frame of latency on the NDI feed.
+ *
+ * <p>To spread load, at most one camera is captured per rendered frame (round-robin over the active
+ * cameras), and captures are skipped on frames where the game is already lagging.
  */
 @OnlyIn(Dist.CLIENT)
 public final class CameraViewCapture {
@@ -57,10 +69,19 @@ public final class CameraViewCapture {
 
     private static final class Target {
         RenderTarget rt;
-        ByteBuffer readBuffer;
+        byte[] frameBytes;
         int w;
         int h;
         long lastCaptureNs;
+
+        // Async PBO readback (double-buffered).
+        int[] pbos;
+        int pboSize;
+        int pboWrite;      // index issued the async read this frame
+        boolean pboPending; // a read has been issued and is awaiting map
+        int pendingW;
+        int pendingH;
+        BlockPos pendingPos;
 
         // Per-camera chunk-render state.
         ViewArea viewArea;
@@ -73,11 +94,20 @@ public final class CameraViewCapture {
         int lastChunkY = Integer.MIN_VALUE;
         int lastChunkZ = Integer.MIN_VALUE;
         boolean needsFullUpdate = true;
+
+        double lastSnapX = Double.NaN;
+        double lastSnapY = Double.NaN;
+        double lastSnapZ = Double.NaN;
+        float lastSnapYaw = Float.NaN;
+        float lastSnapPitch = Float.NaN;
+        float lastSnapFov = Float.NaN;
     }
 
     private final Map<BlockPos, Target> targets = new HashMap<>();
     private final Camera captureCamera = new Camera();
     private boolean fabulousWarned;
+    private int roundRobinCursor;
+    private long lastRenderTickNs;
 
     private CameraViewCapture() {
     }
@@ -102,34 +132,77 @@ public final class CameraViewCapture {
             }
             return;
         }
-        CameraNdiManager.getInstance().forEachActiveCamera((pos, snapshot) -> captureOne(mc, pos, snapshot, partialTick));
+
+        // Skip captures on frames where the game is already lagging (avoids a lag spiral).
+        long now = System.nanoTime();
+        if (ModConfig.CAMERA_SKIP_WHEN_LAGGING.get() && lastRenderTickNs != 0L) {
+            long frameMs = (now - lastRenderTickNs) / 1_000_000L;
+            if (frameMs > ModConfig.CAMERA_LAG_FRAME_MS.get()) {
+                lastRenderTickNs = now;
+                return;
+            }
+        }
+        lastRenderTickNs = now;
+
+        // Collect active cameras, then capture at most one per frame (round-robin).
+        List<CameraEntry> active = new ArrayList<>();
+        CameraNdiManager.getInstance().forEachActiveCamera((pos, snapshot) -> active.add(new CameraEntry(pos, snapshot)));
+        if (active.isEmpty()) {
+            return;
+        }
+
+        int count = active.size();
+        // Try starting from the round-robin cursor; capture the first camera due for a frame.
+        for (int i = 0; i < count; i++) {
+            int idx = (roundRobinCursor + i) % count;
+            CameraEntry entry = active.get(idx);
+            if (captureOne(mc, entry.pos(), entry.snapshot(), partialTick)) {
+                roundRobinCursor = (idx + 1) % count;
+                return;
+            }
+        }
     }
 
-    private void captureOne(Minecraft mc, BlockPos pos, CameraSnapshot snapshot, float partialTick) {
-        // Render at the game's framebuffer size so post-processing mods that reset the viewport to the
-        // window size (Shimmer) don't clip the camera to a corner. NDI output uses this size.
-        int w = Math.max(2, mc.getMainRenderTarget().width);
-        int h = Math.max(2, mc.getMainRenderTarget().height);
+    private record CameraEntry(BlockPos pos, CameraSnapshot snapshot) {
+    }
+
+    /** Returns true if a fresh world render was issued this frame (so the round-robin advances). */
+    private boolean captureOne(Minecraft mc, BlockPos pos, CameraSnapshot snapshot, float partialTick) {
+        int[] dims = computeRenderSize(mc, snapshot);
+        int w = dims[0];
+        int h = dims[1];
 
         Target t = targets.get(pos);
         long now = System.nanoTime();
-        if (t != null && (now - t.lastCaptureNs) < (1_000_000_000L / Math.max(1, snapshot.fps()))) {
-            return; // pace capture to the camera's configured FPS
+        int effectiveFps = effectiveCaptureFps(snapshot);
+        boolean due = (t == null) || (now - t.lastCaptureNs) >= (1_000_000_000L / effectiveFps);
+
+        // Always drain a previously issued async read so the feed keeps flowing (one frame latency),
+        // even on frames where this camera is not due for a fresh render.
+        if (t != null && t.pboPending) {
+            drainPending(t, pos);
+        }
+        if (!due) {
+            return false;
         }
         if (t == null) {
             t = new Target();
             targets.put(pos, t);
         }
+
         if (t.rt == null || t.w != w || t.h != h) {
             if (t.rt != null) {
                 t.rt.destroyBuffers();
             }
             t.rt = new MainTarget(w, h);
-            t.readBuffer = ByteBuffer.allocateDirect(w * h * 4).order(ByteOrder.nativeOrder());
+            t.frameBytes = new byte[w * h * 4];
             t.w = w;
             t.h = h;
         }
-        int viewDistance = mc.options.getEffectiveRenderDistance();
+        int viewDistance = Math.min(
+                mc.options.getEffectiveRenderDistance(),
+                ModConfig.CAMERA_CAPTURE_VIEW_DISTANCE.get()
+        );
         if (t.viewArea == null || t.viewDistance != viewDistance) {
             if (t.viewArea != null) {
                 t.viewArea.releaseAllBuffers();
@@ -142,15 +215,88 @@ public final class CameraViewCapture {
             t.lastChunkY = Integer.MIN_VALUE;
             t.lastChunkZ = Integer.MIN_VALUE;
         }
+
+        // Optional: skip the expensive world render entirely when the view has not moved (fixed shot).
+        // Off by default because it also freezes moving entities in the feed. Chunk-update state is left
+        // to renderLevel (as in the known-good path) so geometry is never rendered at stale offsets.
+        if (ModConfig.CAMERA_SKIP_STATIC_FRAMES.get()
+                && !viewChanged(t, snapshot) && !t.needsFullUpdate && !Double.isNaN(t.lastSnapX)) {
+            t.lastCaptureNs = now;
+            return false;
+        }
+
         t.lastCaptureNs = now;
 
         try {
             renderCameraView(mc, t, snapshot, partialTick);
-            byte[] frame = readback(t);
-            CameraNdiManager.getInstance().submitCapturedFrame(pos, frame, w, h);
+            issueAsyncReadback(t, pos, w, h);
+            rememberView(t, snapshot);
         } catch (Throwable ex) {
             CameraNdiManager.getInstance().onCaptureFailed(pos, ex);
         }
+        return true;
+    }
+
+    private void drainPending(Target t, BlockPos pos) {
+        try {
+            byte[] frame = mapPendingReadback(t);
+            if (frame != null) {
+                CameraNdiManager.getInstance().submitCapturedFrame(t.pendingPos, frame, t.pendingW, t.pendingH);
+            }
+        } catch (Throwable ex) {
+            CameraNdiManager.getInstance().onCaptureFailed(pos, ex);
+        }
+    }
+
+    private static int effectiveCaptureFps(CameraSnapshot snapshot) {
+        int maxFps = ModConfig.CAMERA_MAX_CAPTURE_FPS.get();
+        return Math.min(Math.max(1, snapshot.fps()), Math.max(1, maxFps));
+    }
+
+    private static int[] computeRenderSize(Minecraft mc, CameraSnapshot snapshot) {
+        int maxRes = ModConfig.CAMERA_MAX_RESOLUTION.get();
+        int scale = ModConfig.CAMERA_RENDER_SCALE.get();
+        int w;
+        int h;
+        if (ModConfig.CAMERA_USE_CONFIGURED_RESOLUTION.get()) {
+            w = Math.max(2, snapshot.width());
+            h = Math.max(2, snapshot.height());
+        } else {
+            w = Math.max(2, mc.getMainRenderTarget().width);
+            h = Math.max(2, mc.getMainRenderTarget().height);
+        }
+        w = Math.max(2, w * scale / 100);
+        h = Math.max(2, h * scale / 100);
+        int longest = Math.max(w, h);
+        if (longest > maxRes) {
+            float factor = maxRes / (float) longest;
+            w = Math.max(64, Math.round(w * factor));
+            h = Math.max(64, Math.round(h * factor));
+        }
+        w = w & ~1;
+        h = h & ~1;
+        return new int[]{Math.max(2, w), Math.max(2, h)};
+    }
+
+    private static boolean viewChanged(Target t, CameraSnapshot snapshot) {
+        if (Double.isNaN(t.lastSnapX)) {
+            return true;
+        }
+        return Math.abs(t.lastSnapX - snapshot.renderX()) > 0.05D
+                || Math.abs(t.lastSnapY - snapshot.renderY()) > 0.05D
+                || Math.abs(t.lastSnapZ - snapshot.renderZ()) > 0.05D
+                || Math.abs(t.lastSnapYaw - snapshot.yaw()) > 0.25F
+                || Math.abs(t.lastSnapPitch - snapshot.pitch()) > 0.25F
+                || Math.abs(t.lastSnapFov - snapshot.fov()) > 0.25F;
+    }
+
+    private static void rememberView(Target t, CameraSnapshot snapshot) {
+        t.lastSnapX = snapshot.renderX();
+        t.lastSnapY = snapshot.renderY();
+        t.lastSnapZ = snapshot.renderZ();
+        t.lastSnapYaw = snapshot.yaw();
+        t.lastSnapPitch = snapshot.pitch();
+        t.lastSnapFov = snapshot.fov();
     }
 
     @SuppressWarnings({"unchecked", "rawtypes"})
@@ -217,6 +363,8 @@ public final class CameraViewCapture {
             lr.renderLevel(poseStack, partialTick, 0L, false, captureCamera, mc.gameRenderer,
                     mc.gameRenderer.lightTexture(), projection);
 
+            // Post-processing mods may reset the viewport to the game window; clamp back before readback.
+            RenderSystem.viewport(0, 0, t.w, t.h);
             mc.renderBuffers().bufferSource().endBatch();
             t.rt.unbindWrite();
         } finally {
@@ -246,20 +394,73 @@ public final class CameraViewCapture {
         }
     }
 
-    private byte[] readback(Target t) {
-        ByteBuffer buf = t.readBuffer;
-        buf.clear();
+    /**
+     * Issues a non-blocking pixel read of the camera target into a PBO. Returns immediately; the
+     * data is fetched on the next capture via {@link #mapPendingReadback(Target)}.
+     */
+    private void issueAsyncReadback(Target t, BlockPos pos, int w, int h) {
+        int size = w * h * 4;
+        if (t.pbos == null) {
+            t.pbos = new int[]{GL15.glGenBuffers(), GL15.glGenBuffers()};
+            t.pboSize = 0;
+        }
+        if (t.pboSize != size) {
+            for (int id : t.pbos) {
+                GL30.glBindBuffer(GL30.GL_PIXEL_PACK_BUFFER, id);
+                GL30.glBufferData(GL30.GL_PIXEL_PACK_BUFFER, size, GL15.GL_STREAM_READ);
+            }
+            GL30.glBindBuffer(GL30.GL_PIXEL_PACK_BUFFER, 0);
+            t.pboSize = size;
+        }
+
+        int writeIndex = t.pboWrite;
+        GL30.glBindBuffer(GL30.GL_PIXEL_PACK_BUFFER, t.pbos[writeIndex]);
         GlStateManager._bindTexture(t.rt.getColorTextureId());
         GL11.glPixelStorei(GL11.GL_PACK_ALIGNMENT, 1);
-        GL11.glGetTexImage(GL11.GL_TEXTURE_2D, 0, GL12.GL_BGRA, GL11.GL_UNSIGNED_BYTE, buf);
+        // Read into the bound PACK buffer (offset 0) — asynchronous, does not block the render thread.
+        GL11.glGetTexImage(GL11.GL_TEXTURE_2D, 0, GL12.GL_BGRA, GL11.GL_UNSIGNED_BYTE, 0L);
         GlStateManager._bindTexture(0);
+        GL30.glBindBuffer(GL30.GL_PIXEL_PACK_BUFFER, 0);
 
-        int rowBytes = t.w * 4;
-        byte[] out = new byte[rowBytes * t.h];
-        for (int y = 0; y < t.h; y++) {
-            buf.position((t.h - 1 - y) * rowBytes);
-            buf.get(out, y * rowBytes, rowBytes);
+        t.pboPending = true;
+        t.pendingW = w;
+        t.pendingH = h;
+        t.pendingPos = pos;
+    }
+
+    /**
+     * Maps the PBO from the previously issued async read and copies it (vertically flipped) into
+     * {@link Target#frameBytes}. Data is already resident, so this does not stall.
+     */
+    private byte[] mapPendingReadback(Target t) {
+        if (!t.pboPending || t.pbos == null) {
+            return null;
         }
+        int w = t.pendingW;
+        int h = t.pendingH;
+        int rowBytes = w * 4;
+        int size = rowBytes * h;
+
+        GL30.glBindBuffer(GL30.GL_PIXEL_PACK_BUFFER, t.pbos[t.pboWrite]);
+        ByteBuffer mapped = GL30.glMapBufferRange(GL30.GL_PIXEL_PACK_BUFFER, 0L, size, GL30.GL_MAP_READ_BIT);
+        byte[] out = null;
+        if (mapped != null) {
+            if (t.frameBytes == null || t.frameBytes.length != size) {
+                t.frameBytes = new byte[size];
+            }
+            mapped.order(ByteOrder.nativeOrder());
+            for (int y = 0; y < h; y++) {
+                mapped.position((h - 1 - y) * rowBytes);
+                mapped.get(t.frameBytes, y * rowBytes, rowBytes);
+            }
+            out = t.frameBytes;
+        }
+        GL30.glUnmapBuffer(GL30.GL_PIXEL_PACK_BUFFER);
+        GL30.glBindBuffer(GL30.GL_PIXEL_PACK_BUFFER, 0);
+
+        // Alternate buffers so the next issue writes to the other PBO.
+        t.pboWrite ^= 1;
+        t.pboPending = false;
         return out;
     }
 
@@ -284,6 +485,12 @@ public final class CameraViewCapture {
         }
         if (t.viewArea != null) {
             t.viewArea.releaseAllBuffers();
+        }
+        if (t.pbos != null) {
+            for (int id : t.pbos) {
+                GL15.glDeleteBuffers(id);
+            }
+            t.pbos = null;
         }
     }
 }

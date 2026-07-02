@@ -1,5 +1,7 @@
 package fr.lumavision.video;
 
+import net.minecraft.core.BlockPos;
+
 import java.util.Objects;
 
 /**
@@ -19,6 +21,12 @@ public record VideoSourceDescriptor(VideoSourceType type, String payload) {
     public static final String SPOUT_PREFIX = "spout:";
     public static final String SYPHON_PREFIX = "syphon:";
     public static final String SCREEN_CAPTURE_PREFIX = "capture:";
+    public static final String RELAY_PREFIX = "relay:";
+
+    /** Internal relay key: {@code relay:x,y,z} for a wall group origin. */
+    public static String relayKey(BlockPos origin) {
+        return origin.getX() + "," + origin.getY() + "," + origin.getZ();
+    }
 
     public VideoSourceDescriptor {
         Objects.requireNonNull(type, "type");
@@ -69,6 +77,18 @@ public record VideoSourceDescriptor(VideoSourceType type, String payload) {
         return typed(VideoSourceType.SCREEN_CAPTURE, monitorId);
     }
 
+    public static VideoSourceDescriptor relay(BlockPos groupOrigin) {
+        return typed(VideoSourceType.RELAY, relayKey(groupOrigin));
+    }
+
+    public static BlockPos parseRelayOrigin(String payload) {
+        String[] parts = payload.split(",");
+        if (parts.length != 3) {
+            throw new IllegalArgumentException("Invalid relay payload: " + payload);
+        }
+        return new BlockPos(Integer.parseInt(parts[0].trim()), Integer.parseInt(parts[1].trim()), Integer.parseInt(parts[2].trim()));
+    }
+
     private static VideoSourceDescriptor typed(VideoSourceType type, String payload) {
         if (payload == null || payload.isBlank()) {
             throw new IllegalArgumentException(type + " payload must not be blank");
@@ -82,6 +102,10 @@ public record VideoSourceDescriptor(VideoSourceType type, String payload) {
 
     public boolean isNdi() {
         return type == VideoSourceType.NDI;
+    }
+
+    public boolean isRelay() {
+        return type == VideoSourceType.RELAY;
     }
 
     /**
@@ -114,6 +138,7 @@ public record VideoSourceDescriptor(VideoSourceType type, String payload) {
             case SPOUT -> SPOUT_PREFIX;
             case SYPHON -> SYPHON_PREFIX;
             case SCREEN_CAPTURE -> SCREEN_CAPTURE_PREFIX;
+            case RELAY -> RELAY_PREFIX;
         };
     }
 }

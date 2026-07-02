@@ -17,7 +17,7 @@ import java.util.Optional;
  */
 public final class ModNetworking {
 
-    private static final String PROTOCOL_VERSION = "2";
+    private static final String PROTOCOL_VERSION = "4";
 
     public static final SimpleChannel CHANNEL = NetworkRegistry.newSimpleChannel(
             new ResourceLocation(LumaVisionMod.MOD_ID, "main"),
@@ -79,6 +79,21 @@ public final class ModNetworking {
                 CameraRigInputPacket::decode,
                 CameraRigInputPacket::handle,
                 Optional.of(NetworkDirection.PLAY_TO_SERVER)
+        );
+        CHANNEL.registerMessage(
+                nextPacketId++,
+                ScreenFrameChunkPacket.class,
+                ScreenFrameChunkPacket::encode,
+                ScreenFrameChunkPacket::decode,
+                ScreenFrameChunkPacket::handle
+        );
+        CHANNEL.registerMessage(
+                nextPacketId++,
+                MediaRelaySyncPacket.class,
+                MediaRelaySyncPacket::encode,
+                MediaRelaySyncPacket::decode,
+                MediaRelaySyncPacket::handle,
+                Optional.of(NetworkDirection.PLAY_TO_CLIENT)
         );
         LumaVisionMod.LOGGER.debug("LumaVision networking ready (protocol v{})", PROTOCOL_VERSION);
     }

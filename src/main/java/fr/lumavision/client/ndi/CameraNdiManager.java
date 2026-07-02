@@ -65,6 +65,10 @@ public final class CameraNdiManager {
             removeIfPresent(pos);
             return;
         }
+        if (!fr.lumavision.client.relay.MediaRelayClient.getInstance().shouldCaptureCamera(pos)) {
+            removeIfPresent(pos);
+            return;
+        }
         if (!ensureRuntime()) {
             return;
         }

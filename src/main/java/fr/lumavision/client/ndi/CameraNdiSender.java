@@ -94,8 +94,8 @@ final class CameraNdiSender {
     }
 
     /** Push a freshly captured world-view frame (BGRA, top-down) from the render thread. */
-    void submitFrame(byte[] bgra, int w, int h) {
-        capturedFrame.set(new Frame(bgra, w, h));
+        void submitFrame(byte[] bgra, int w, int h) {
+        capturedFrame.set(new Frame(bgra.clone(), w, h));
     }
 
     private void loop() {

@@ -16,5 +16,7 @@ public enum VideoSourceType {
     NETWORK,
     SPOUT,
     SYPHON,
-    SCREEN_CAPTURE
+    SCREEN_CAPTURE,
+    /** Frames relayed from another client via the server (multiplayer bridge). */
+    RELAY
 }

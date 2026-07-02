@@ -30,9 +30,9 @@ public final class CameraParameters {
     private float roll;     // degrees, [-180, 180]
     private float fov = 70.0F;
     private float zoom = 1.0F;
-    private int resolutionWidth = 1280;
-    private int resolutionHeight = 720;
-    private int fps = 30;
+    private int resolutionWidth = 960;
+    private int resolutionHeight = 540;
+    private int fps = 20;
     private boolean enabled = true;
     private String ndiSourceName = "";
     /** Normalized position along the mounted rail track, [0,1]. 0 = track origin when unmounted. */

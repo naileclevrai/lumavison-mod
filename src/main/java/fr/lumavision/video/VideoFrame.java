@@ -153,6 +153,39 @@ public final class VideoFrame {
         }
     }
 
+    /** Exports pixels as RGBA bytes (for network relay). */
+    public byte[] copyRgbaBytes() {
+        byte[] rgba = new byte[pixels.length * 4];
+        for (int i = 0; i < pixels.length; i++) {
+            int nativeRgba = pixels[i];
+            int base = i * 4;
+            rgba[base] = (byte) (nativeRgba & 0xFF);
+            rgba[base + 1] = (byte) ((nativeRgba >>> 8) & 0xFF);
+            rgba[base + 2] = (byte) ((nativeRgba >>> 16) & 0xFF);
+            rgba[base + 3] = (byte) ((nativeRgba >>> 24) & 0xFF);
+        }
+        return rgba;
+    }
+
+    /** Imports RGBA bytes into this frame. */
+    public void copyFromRgbaBytes(byte[] rgba, int w, int h) {
+        if (w != width || h != height) {
+            throw new IllegalArgumentException("Frame size mismatch");
+        }
+        if (rgba.length != pixels.length * 4) {
+            throw new IllegalArgumentException("RGBA buffer size mismatch");
+        }
+        for (int i = 0; i < pixels.length; i++) {
+            int base = i * 4;
+            int r = rgba[base] & 0xFF;
+            int g = rgba[base + 1] & 0xFF;
+            int b = rgba[base + 2] & 0xFF;
+            int a = rgba[base + 3] & 0xFF;
+            pixels[i] = (a << 24) | (b << 16) | (g << 8) | r;
+        }
+        markDirty();
+    }
+
     public void copyColorGradedFrom(VideoFrame source, int[] redMap, int[] greenMap, int[] blueMap) {
         if (source.width != width || source.height != height) {
             throw new IllegalArgumentException("Frame size mismatch");

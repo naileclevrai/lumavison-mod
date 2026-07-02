@@ -1,9 +1,10 @@
 package fr.lumavision.client;
 
 import fr.lumavision.LumaVisionMod;
-import fr.lumavision.client.ndi.NdiProvider;
+import fr.lumavision.client.relay.MediaRelayClient;
+import fr.lumavision.client.relay.ScreenFrameUploader;
 import fr.lumavision.client.texture.ScreenTextureManager;
-import fr.lumavision.config.ModConfig;
+import fr.lumavision.network.ScreenFrameChunkHandler;
 import net.minecraft.client.Minecraft;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.ClientPlayerNetworkEvent;
@@ -46,6 +47,11 @@ public final class LumaVisionClientForgeEvents {
 
     private static void scheduleTextureCleanup() {
         Minecraft minecraft = Minecraft.getInstance();
-        minecraft.execute(ScreenTextureManager.getInstance()::clear);
+        minecraft.execute(() -> {
+            ScreenTextureManager.getInstance().clear();
+            MediaRelayClient.getInstance().clear();
+            ScreenFrameUploader.getInstance().clear();
+            ScreenFrameChunkHandler.clearClient();
+        });
     }
 }

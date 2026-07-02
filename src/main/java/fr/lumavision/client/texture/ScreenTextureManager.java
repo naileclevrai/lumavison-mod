@@ -1,6 +1,9 @@
 package fr.lumavision.client.texture;
 
 import fr.lumavision.blockentity.LedScreenBlockEntity;
+import fr.lumavision.client.relay.MediaRelayClient;
+import fr.lumavision.client.relay.ScreenFrameUploader;
+import fr.lumavision.relay.WallRelayRole;
 import fr.lumavision.client.display.DisplayColorGrading;
 import fr.lumavision.client.video.catalog.ClientVideoSourceCatalog;
 import fr.lumavision.config.ModConfig;
@@ -121,6 +124,23 @@ public final class ScreenTextureManager {
         }
     }
 
+    /** Forces pipeline rebuild when relay roles change (multiplayer). */
+    public void invalidateWalls(Iterable<BlockPos> origins) {
+        Set<Long> keys = new HashSet<>();
+        for (BlockPos origin : origins) {
+            pendingOrigins.add(origin);
+            keys.add(origin.asLong());
+        }
+        Iterator<Map.Entry<Long, ScreenPipeline>> iterator = pipelines.entrySet().iterator();
+        while (iterator.hasNext()) {
+            Map.Entry<Long, ScreenPipeline> entry = iterator.next();
+            if (keys.contains(entry.getKey())) {
+                entry.getValue().close();
+                iterator.remove();
+            }
+        }
+    }
+
     private void processPendingPipelines(Level level) {
         if (pendingOrigins.isEmpty()) {
             return;
@@ -143,7 +163,8 @@ public final class ScreenTextureManager {
         ScreenDisplaySettings displaySettings = LedScreenBlockEntity.resolveDisplaySettings(level, membership);
 
         ScreenPipeline existing = pipelines.get(key);
-        if (existing != null && existing.matches(membership, descriptor, displaySettings)) {
+        WallRelayRole relayRole = MediaRelayClient.getInstance().wallRole(membership.groupOrigin());
+        if (existing != null && existing.matches(membership, descriptor, displaySettings, relayRole)) {
             return;
         }
         if (existing != null) {
@@ -151,14 +172,20 @@ public final class ScreenTextureManager {
         }
 
         ScreenPipeline pipeline = createPipeline(membership, descriptor);
+        pipeline.relayRole = relayRole;
         pipelines.put(key, pipeline);
         pipeline.tick(level, playerPosition());
     }
 
     private static VideoSourceDescriptor resolveDescriptor(Level level, ScreenGroupMembership membership) {
-        BlockEntity blockEntity = level.getBlockEntity(membership.groupOrigin());
-        if (blockEntity instanceof LedScreenBlockEntity origin) {
-            return ClientVideoSourceCatalog.INSTANCE.resolve(origin);
+        BlockPos origin = membership.groupOrigin();
+        if (MediaRelayClient.getInstance().wallRole(origin) == WallRelayRole.RECEIVE) {
+            return VideoSourceDescriptor.relay(origin);
+        }
+
+        BlockEntity blockEntity = level.getBlockEntity(origin);
+        if (blockEntity instanceof LedScreenBlockEntity led) {
+            return ClientVideoSourceCatalog.INSTANCE.resolve(led);
         }
         return VideoSourceDescriptor.testPattern();
     }
@@ -232,7 +259,9 @@ public final class ScreenTextureManager {
             ScreenGroupMembership membership = led.getGroupMembership();
             VideoSourceDescriptor descriptor = resolveDescriptor(level, membership);
             ScreenDisplaySettings displaySettings = LedScreenBlockEntity.resolveDisplaySettings(level, membership);
-            if (!membership.groupOrigin().equals(origin) || !entry.getValue().matches(membership, descriptor, displaySettings)) {
+            WallRelayRole relayRole = MediaRelayClient.getInstance().wallRole(membership.groupOrigin());
+            if (!membership.groupOrigin().equals(origin)
+                    || !entry.getValue().matches(membership, descriptor, displaySettings, relayRole)) {
                 entry.getValue().close();
                 iterator.remove();
             }
@@ -257,6 +286,7 @@ public final class ScreenTextureManager {
         private long lastUploadMs;
         private WallRenderContext renderContext;
         private String lastRenderContextKey = "";
+        private WallRelayRole relayRole = WallRelayRole.LOCAL;
 
         private ScreenPipeline(ScreenGroupMembership membership, VideoSourceDescriptor descriptor,
                                VideoSource source, DynamicTextureHandle texture, QualityTier qualityTier) {
@@ -266,14 +296,16 @@ public final class ScreenTextureManager {
             this.texture = texture;
             this.qualityTier = qualityTier;
             this.gradedFrame = new VideoFrame(source.getWidth(), source.getHeight());
+            this.relayRole = WallRelayRole.LOCAL;
         }
 
         private boolean matches(ScreenGroupMembership other, VideoSourceDescriptor otherDescriptor,
-                                ScreenDisplaySettings displaySettings) {
+                                ScreenDisplaySettings displaySettings, WallRelayRole otherRelayRole) {
             return membership.gridWidth() == other.gridWidth()
                     && membership.gridHeight() == other.gridHeight()
                     && membership.groupOrigin().equals(other.groupOrigin())
-                    && descriptor.cacheKey().equals(otherDescriptor.cacheKey());
+                    && descriptor.cacheKey().equals(otherDescriptor.cacheKey())
+                    && relayRole == otherRelayRole;
         }
 
         private DynamicTextureHandle texture() {
@@ -369,6 +401,11 @@ public final class ScreenTextureManager {
             lastUploadedFrameRevision = frameRevision;
             lastUploadedDisplayKey = textureGradingKey;
             lastUploadMs = nowMs;
+
+            if (MediaRelayClient.getInstance().wallRole(membership.groupOrigin()) == WallRelayRole.UPLOAD) {
+                VideoFrame relayFrame = displaySettings.needsTextureColorGrading() ? gradedFrame : frame;
+                ScreenFrameUploader.getInstance().maybeUpload(membership.groupOrigin(), relayFrame);
+            }
         }
 
         private static int computeUploadContentHash(VideoFrame frame, ScreenDisplaySettings displaySettings) {

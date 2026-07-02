@@ -2,6 +2,7 @@ package fr.lumavision.client.video.catalog;
 
 import fr.lumavision.LumaVisionMod;
 import fr.lumavision.blockentity.LedScreenBlockEntity;
+import fr.lumavision.client.relay.RelayVideoSourceProvider;
 import fr.lumavision.client.ndi.NdiProvider;
 import fr.lumavision.client.video.provider.BrowserVideoSourceProvider;
 import fr.lumavision.client.video.provider.FileVideoSourceProvider;
@@ -40,6 +41,7 @@ public final class ClientVideoSourceCatalog implements VideoSourceCatalog {
 
     private ClientVideoSourceCatalog() {
         register(NdiProvider.INSTANCE);
+        register(RelayVideoSourceProvider.INSTANCE);
         register(FileVideoSourceProvider.INSTANCE);
         register(GifVideoSourceProvider.INSTANCE);
         register(ImageVideoSourceProvider.INSTANCE);

@@ -94,11 +94,63 @@ public final class ModConfig {
 
     public static final ForgeConfigSpec.IntValue CAMERA_DEFAULT_FPS = BUILDER
             .comment("Default capture/output frame rate for a newly placed camera.")
-            .defineInRange("cameraDefaultFps", 30, 1, 60);
+            .defineInRange("cameraDefaultFps", 20, 1, 60);
+
+    public static final ForgeConfigSpec.IntValue CAMERA_MAX_CAPTURE_FPS = BUILDER
+            .comment("Hard cap on offscreen world captures per second per camera (lower = better game FPS).")
+            .defineInRange("cameraMaxCaptureFps", 15, 1, 60);
+
+    public static final ForgeConfigSpec.IntValue CAMERA_CAPTURE_VIEW_DISTANCE = BUILDER
+            .comment("Chunk render distance used for camera offscreen capture (lower = much better game FPS).")
+            .defineInRange("cameraCaptureViewDistance", 6, 2, 32);
+
+    public static final ForgeConfigSpec.IntValue CAMERA_DEFAULT_RESOLUTION = BUILDER
+            .comment("Default longest side (pixels) for a newly placed camera's offscreen render target.")
+            .defineInRange("cameraDefaultResolution", 960, 64, 3840);
+
+    public static final ForgeConfigSpec.BooleanValue CAMERA_USE_CONFIGURED_RESOLUTION = BUILDER
+            .comment("Render at the camera's configured output resolution instead of the game window size (much better FPS). "
+                    + "If post-processing mods (Shimmer) misalign blocks, set this to false.")
+            .define("cameraUseConfiguredResolution", true);
+
+    public static final ForgeConfigSpec.IntValue CAMERA_RENDER_SCALE = BUILDER
+            .comment("Extra scale applied to the camera render resolution, in percent (50 = half pixels). "
+                    + "Applied after cameraUseConfiguredResolution / window sizing.")
+            .defineInRange("cameraRenderScale", 100, 25, 100);
 
     public static final ForgeConfigSpec.BooleanValue CAMERA_RENDER_WORLD = BUILDER
             .comment("Render the actual in-game view for camera NDI output. If false (or on failure/Fabulous graphics), a test pattern is sent instead.")
             .define("cameraRenderWorld", true);
+
+    public static final ForgeConfigSpec.BooleanValue CAMERA_SKIP_WHEN_LAGGING = BUILDER
+            .comment("Skip a camera capture on frames where the game is already running slow, to avoid a lag spiral.")
+            .define("cameraSkipWhenLagging", true);
+
+    public static final ForgeConfigSpec.BooleanValue CAMERA_SKIP_STATIC_FRAMES = BUILDER
+            .comment("Reuse the last captured frame when the camera view has not changed (big FPS gain for fixed shots, but moving entities won't update in the feed).")
+            .define("cameraSkipStaticFrames", false);
+
+    public static final ForgeConfigSpec.IntValue CAMERA_LAG_FRAME_MS = BUILDER
+            .comment("Frame time (ms) above which camera captures are skipped when cameraSkipWhenLagging is on.")
+            .defineInRange("cameraLagFrameMs", 50, 10, 500);
+
+    // --- Multiplayer media relay -----------------------------------------
+
+    public static final ForgeConfigSpec.BooleanValue ENABLE_MULTIPLAYER_RELAY = BUILDER
+            .comment("When multiple players are online, one client captures NDI/local sources and the server relays frames to others (server NDI bridge).")
+            .define("enableMultiplayerRelay", true);
+
+    public static final ForgeConfigSpec.IntValue RELAY_MAX_FRAME_RESOLUTION = BUILDER
+            .comment("Longest side of relayed frames sent over the network (lower = less bandwidth).")
+            .defineInRange("relayMaxFrameResolution", 512, 64, 1024);
+
+    public static final ForgeConfigSpec.IntValue RELAY_MAX_FPS = BUILDER
+            .comment("Maximum relay frame uploads per second per wall from the capture client (0 = unlimited).")
+            .defineInRange("relayMaxFps", 15, 0, 60);
+
+    public static final ForgeConfigSpec.IntValue RELAY_PLAYER_RANGE = BUILDER
+            .comment("Maximum distance (blocks) for a player to participate in wall/camera relay.")
+            .defineInRange("relayPlayerRange", 96, 16, 256);
 
     public static final ForgeConfigSpec SPEC = BUILDER.build();
 

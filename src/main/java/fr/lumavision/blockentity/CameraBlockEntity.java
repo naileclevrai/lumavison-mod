@@ -30,6 +30,15 @@ public class CameraBlockEntity extends BlockEntity {
         if (parameters.ndiSourceName().isEmpty()) {
             parameters.setNdiSourceName(defaultSourceName(pos));
         }
+        applyDefaultCaptureSettings();
+    }
+
+    private void applyDefaultCaptureSettings() {
+        int longest = fr.lumavision.config.ModConfig.CAMERA_DEFAULT_RESOLUTION.get();
+        int w = longest;
+        int h = Math.max(64, longest * 9 / 16);
+        parameters.setResolution(w, h);
+        parameters.setFps(fr.lumavision.config.ModConfig.CAMERA_DEFAULT_FPS.get());
     }
 
     public static String defaultSourceName(BlockPos pos) {
