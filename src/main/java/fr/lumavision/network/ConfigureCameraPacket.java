@@ -11,8 +11,8 @@ import java.util.function.Supplier;
 
 /**
  * Client → server: apply GUI-authored static camera configuration (NDI name, resolution, fps, FOV,
- * enabled, DMX patch). Live DMX-driven motion (pan/tilt/zoom/track) is not carried here — it is
- * authored on the server from Art-Net and pushed to clients via a separate lightweight packet (M3).
+ * manual aim, enabled). Live motion (pan/tilt/zoom/track) is not carried here — it is authored on the
+ * server and pushed to clients via a separate lightweight packet.
  */
 public final class ConfigureCameraPacket {
 

@@ -17,7 +17,7 @@ import org.jetbrains.annotations.Nullable;
 
 /**
  * A straight camera dolly rail. Lay several in a line (same axis) to form a track; a camera placed on
- * top of the run travels along it as its {@code trackPosition} changes (driven manually or over DMX/NDI).
+ * top of the run travels along it as its {@code trackPosition} changes (driven manually or over NDI).
  */
 public class CameraRailBlock extends Block {
 

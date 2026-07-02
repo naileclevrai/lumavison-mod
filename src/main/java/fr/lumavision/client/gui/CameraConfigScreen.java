@@ -17,15 +17,14 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 
 /**
- * Client configuration screen for a camera block. Reads current {@link CameraParameters} from the
- * synced block entity, lets the player edit the static fields (NDI name, resolution, fps, FOV, enable,
- * DMX patch), and sends them back with {@link ConfigureCameraPacket}. Live DMX-driven values are not
- * edited here — they are authored on the server from Art-Net (M3).
+ * Client configuration screen for a camera block. Reads the current {@link CameraParameters} from the
+ * synced block entity, lets the player edit them (NDI name, resolution, fps, FOV, manual aim, enable),
+ * and sends them back with {@link ConfigureCameraPacket}.
  */
 public final class CameraConfigScreen extends AbstractContainerScreen<CameraConfigMenu> {
 
     private static final int PANEL_W = 260;
-    private static final int PANEL_H = 236;
+    private static final int PANEL_H = 150;
 
     private EditBox nameBox;
     private EditBox resWBox;
@@ -35,17 +34,9 @@ public final class CameraConfigScreen extends AbstractContainerScreen<CameraConf
     private EditBox panBox;
     private EditBox tiltBox;
     private EditBox rollBox;
-    private EditBox universeBox;
-    private EditBox panChBox;
-    private EditBox tiltChBox;
-    private EditBox zoomChBox;
-    private EditBox trackChBox;
-    private EditBox enableChBox;
 
     private boolean enabled = true;
-    private boolean sixteenBit;
     private Button enabledButton;
-    private Button sixteenBitButton;
 
     public CameraConfigScreen(CameraConfigMenu menu, Inventory inventory, Component title) {
         super(menu, inventory, title);
@@ -69,7 +60,6 @@ public final class CameraConfigScreen extends AbstractContainerScreen<CameraConf
         super.init();
         CameraParameters p = currentParameters();
         this.enabled = p.enabled();
-        this.sixteenBit = p.dmx().sixteenBit();
 
         int left = this.leftPos + 12;
         int col2 = this.leftPos + 140;
@@ -85,7 +75,7 @@ public final class CameraConfigScreen extends AbstractContainerScreen<CameraConf
         fovBox = addEdit(left + 176, y, 48, Integer.toString(Math.round(p.fov())));
         y += rowH + 4;
 
-        // Manual aim: point the camera lens (degrees), independent of the player. DMX overrides these when patched.
+        // Manual aim: point the camera lens (degrees), independent of the player.
         panBox = addEdit(left, y, 60, fmt(p.pan()));
         tiltBox = addEdit(left + 68, y, 60, fmt(p.tilt()));
         rollBox = addEdit(left + 136, y, 60, fmt(p.roll()));
@@ -94,24 +84,9 @@ public final class CameraConfigScreen extends AbstractContainerScreen<CameraConf
         enabledButton = Button.builder(enabledLabel(), b -> {
             enabled = !enabled;
             b.setMessage(enabledLabel());
-        }).bounds(left, y, 110, 18).build();
+        }).bounds(left, y, 236, 18).build();
         addRenderableWidget(enabledButton);
-        sixteenBitButton = Button.builder(sixteenBitLabel(), b -> {
-            sixteenBit = !sixteenBit;
-            b.setMessage(sixteenBitLabel());
-        }).bounds(left + 118, y, 118, 18).build();
-        addRenderableWidget(sixteenBitButton);
         y += rowH + 8;
-
-        universeBox = addEdit(left, y, 60, Integer.toString(p.dmx().universe()));
-        y += rowH + 4;
-
-        panChBox = addEdit(left, y, 40, Integer.toString(p.dmx().panChannel()));
-        tiltChBox = addEdit(left + 48, y, 40, Integer.toString(p.dmx().tiltChannel()));
-        zoomChBox = addEdit(left + 96, y, 40, Integer.toString(p.dmx().zoomChannel()));
-        trackChBox = addEdit(left + 144, y, 40, Integer.toString(p.dmx().trackChannel()));
-        enableChBox = addEdit(left + 192, y, 40, Integer.toString(p.dmx().enableChannel()));
-        y += rowH + 10;
 
         addRenderableWidget(Button.builder(Component.translatable("gui.lumavision.camera_config.apply"),
                 b -> apply()).bounds(left, y, 114, 20).build());
@@ -132,11 +107,6 @@ public final class CameraConfigScreen extends AbstractContainerScreen<CameraConf
                 Component.translatable(enabled ? "gui.lumavision.camera_config.on" : "gui.lumavision.camera_config.off"));
     }
 
-    private Component sixteenBitLabel() {
-        return Component.translatable("gui.lumavision.camera_config.sixteen_bit",
-                Component.translatable(sixteenBit ? "gui.lumavision.camera_config.on" : "gui.lumavision.camera_config.off"));
-    }
-
     private void apply() {
         CameraParameters edited = new CameraParameters();
         edited.setNdiSourceName(nameBox.getValue());
@@ -147,13 +117,6 @@ public final class CameraConfigScreen extends AbstractContainerScreen<CameraConf
         edited.setTilt(parseFloat(tiltBox, 0.0F));
         edited.setRoll(parseFloat(rollBox, 0.0F));
         edited.setEnabled(enabled);
-        edited.dmx().setUniverse(parseInt(universeBox, 0));
-        edited.dmx().setSixteenBit(sixteenBit);
-        edited.dmx().setPanChannel(parseInt(panChBox, 0));
-        edited.dmx().setTiltChannel(parseInt(tiltChBox, 0));
-        edited.dmx().setZoomChannel(parseInt(zoomChBox, 0));
-        edited.dmx().setTrackChannel(parseInt(trackChBox, 0));
-        edited.dmx().setEnableChannel(parseInt(enableChBox, 0));
 
         FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.buffer());
         edited.writeConfig(buf);
@@ -202,8 +165,6 @@ public final class CameraConfigScreen extends AbstractContainerScreen<CameraConf
         graphics.drawString(this.font, Component.translatable("gui.lumavision.camera_config.ndi_name"), 12, 12, grey, false);
         graphics.drawString(this.font, Component.translatable("gui.lumavision.camera_config.res_fps_fov"), 12, 39, grey, false);
         graphics.drawString(this.font, Component.translatable("gui.lumavision.camera_config.aim"), 12, 63, grey, false);
-        graphics.drawString(this.font, Component.translatable("gui.lumavision.camera_config.dmx_universe"), 12, 115, grey, false);
-        graphics.drawString(this.font, Component.translatable("gui.lumavision.camera_config.dmx_channels"), 12, 139, grey, false);
     }
 
     @Override

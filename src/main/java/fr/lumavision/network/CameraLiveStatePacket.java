@@ -10,9 +10,9 @@ import net.minecraftforge.network.NetworkEvent;
 import java.util.function.Supplier;
 
 /**
- * Server → client: live camera motion (pan/tilt/fov/track) authored on the server from Art-Net,
- * pushed to players tracking the camera's chunk. Lightweight and rate-limited (sent only when values
- * change) so smooth DMX motion doesn't require full block-entity resyncs.
+ * Server → client: live camera motion (pan/tilt/fov/track + boom arm) authored on the server (e.g. a
+ * seat operator or NDI PTZ), pushed to players tracking the camera's chunk. Lightweight and sent only
+ * when values change, so smooth motion doesn't require full block-entity resyncs.
  */
 public record CameraLiveStatePacket(BlockPos pos, float pan, float tilt, float fov, float trackPos,
                                     float boomSwing, float boomPitch, float boomLength) {

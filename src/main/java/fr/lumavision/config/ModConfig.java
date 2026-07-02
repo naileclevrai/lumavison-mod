@@ -72,24 +72,6 @@ public final class ModConfig {
             .comment("Render the actual in-game view for camera NDI output. If false (or on failure/Fabulous graphics), a test pattern is sent instead.")
             .define("cameraRenderWorld", true);
 
-    // --- Art-Net / DMX ---------------------------------------------------
-
-    public static final ForgeConfigSpec.BooleanValue ARTNET_ENABLE = BUILDER
-            .comment("Enables the server-side Art-Net listener that drives camera pan/tilt/zoom/track over DMX.")
-            .define("artNetEnable", false);
-
-    public static final ForgeConfigSpec.ConfigValue<String> ARTNET_BIND_ADDRESS = BUILDER
-            .comment("Local interface address the Art-Net listener binds to (0.0.0.0 = all interfaces).")
-            .define("artNetBindAddress", "0.0.0.0");
-
-    public static final ForgeConfigSpec.IntValue ARTNET_PORT = BUILDER
-            .comment("UDP port for the Art-Net listener (standard Art-Net is 6454).")
-            .defineInRange("artNetPort", 6454, 1, 65535);
-
-    public static final ForgeConfigSpec.IntValue ARTNET_POLL_RATE_HZ = BUILDER
-            .comment("Max rate at which DMX changes are applied to cameras and synced to clients.")
-            .defineInRange("artNetPollRateHz", 20, 1, 60);
-
     public static final ForgeConfigSpec SPEC = BUILDER.build();
 
     private ModConfig() {

@@ -110,7 +110,10 @@ public class CameraBlock extends BaseEntityBlock {
     @Override
     public <T extends BlockEntity> BlockEntityTicker<T> getTicker(Level level, BlockState state,
                                                                   BlockEntityType<T> type) {
-        return createTickerHelper(type, ModBlockEntities.CAMERA.get(),
-                level.isClientSide ? CameraBlockEntity::clientTick : CameraBlockEntity::serverTick);
+        // Only the client ticks a camera (to drive its NDI sender); the server has no per-tick work.
+        if (!level.isClientSide) {
+            return null;
+        }
+        return createTickerHelper(type, ModBlockEntities.CAMERA.get(), CameraBlockEntity::clientTick);
     }
 }

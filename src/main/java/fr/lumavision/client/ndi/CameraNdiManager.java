@@ -83,7 +83,9 @@ public final class CameraNdiManager {
             }
             try {
                 senders.put(pos, new CameraNdiSender(snapshot));
-                startNetworkProbe(snapshot.name());
+                if (ModConfig.DEBUG_LOGGING.get()) {
+                    startNetworkProbe(snapshot.name());
+                }
             } catch (Throwable t) {
                 LumaVisionMod.LOGGER.error("Failed to start NDI sender for '{}': {}", snapshot.name(), t.toString());
                 return;

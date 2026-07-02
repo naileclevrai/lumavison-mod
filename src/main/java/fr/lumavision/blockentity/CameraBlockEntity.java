@@ -16,8 +16,7 @@ import org.jetbrains.annotations.Nullable;
 /**
  * Server-authoritative state for a virtual NDI camera block: holds the {@link CameraParameters},
  * persists them to NBT, and syncs them to nearby clients (which render the offscreen view and emit
- * the NDI feed). The Art-Net apply loop (M3) writes live pan/tilt/zoom/track here on the server tick;
- * the client capture scheduler (M2) reads the synced copy.
+ * the NDI feed). The client capture scheduler reads the synced copy.
  */
 public class CameraBlockEntity extends BlockEntity {
 
@@ -59,19 +58,6 @@ public class CameraBlockEntity extends BlockEntity {
         // getTicker wires clientTick solely when level.isClientSide, so the client-only manager
         // class is never loaded on a dedicated server.
         fr.lumavision.client.ndi.CameraNdiManager.getInstance().onCameraClientTick(be);
-    }
-
-    public static void serverTick(Level level, BlockPos pos, BlockState state, CameraBlockEntity be) {
-        if (!fr.lumavision.artnet.ArtNetReceiver.isRunning()) {
-            return;
-        }
-        // Apply live DMX to this camera's parameters; on change, persist + push to tracking clients.
-        if (fr.lumavision.artnet.DmxCameraControl.apply(be.parameters, be.parameters.dmx())) {
-            be.setChanged();
-            if (level instanceof net.minecraft.server.level.ServerLevel serverLevel) {
-                fr.lumavision.network.ModNetworking.sendCameraLiveState(serverLevel, pos, be.parameters);
-            }
-        }
     }
 
     // --- persistence -------------------------------------------------------

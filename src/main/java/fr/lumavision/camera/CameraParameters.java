@@ -7,15 +7,14 @@ import net.minecraft.util.Mth;
 /**
  * Authoritative, serializable state of a single virtual camera.
  *
- * <p>These are the values a camera block renders from and the write target for Art-Net/DMX control
- * (milestone M3). Angles are expressed relative to the camera block's facing: {@code pan}/{@code tilt}
- * compose on top of the block's base orientation so a patched DMX pan of 0 means "looking straight out
- * of the block". State is server-authoritative (persisted in the block entity NBT) and synced to the
- * clients that render the camera and emit its NDI feed.
+ * <p>These are the values a camera block renders from. Angles are expressed relative to the camera
+ * block's facing: {@code pan}/{@code tilt} compose on top of the block's base orientation so a pan of
+ * 0 means "looking straight out of the block". State is server-authoritative (persisted in the block
+ * entity NBT) and synced to the clients that render the camera and emit its NDI feed.
  */
 public final class CameraParameters {
 
-    // Sensible bounds — also used to clamp DMX-decoded values later.
+    // Sensible bounds for the configurable values.
     public static final float MIN_FOV = 10.0F;
     public static final float MAX_FOV = 150.0F;
     public static final float MIN_ZOOM = 1.0F;
@@ -43,8 +42,6 @@ public final class CameraParameters {
     private float boomSwing;   // degrees, arm yaw relative to the block facing
     private float boomPitch;   // degrees, arm elevation (positive = up)
     private float boomLength;  // blocks of reach; 0 = no arm (camera at the block)
-
-    private final DmxPatch dmx = new DmxPatch();
 
     public CameraParameters() {
     }
@@ -168,10 +165,6 @@ public final class CameraParameters {
         this.boomLength = Mth.clamp(blocks, 0.0F, 16.0F);
     }
 
-    public DmxPatch dmx() {
-        return dmx;
-    }
-
     public CameraParameters copy() {
         CameraParameters c = new CameraParameters();
         c.pan = pan;
@@ -188,18 +181,7 @@ public final class CameraParameters {
         c.boomSwing = boomSwing;
         c.boomPitch = boomPitch;
         c.boomLength = boomLength;
-        copyDmxInto(c.dmx);
         return c;
-    }
-
-    private void copyDmxInto(DmxPatch target) {
-        target.setUniverse(dmx.universe());
-        target.setSixteenBit(dmx.sixteenBit());
-        target.setPanChannel(dmx.panChannel());
-        target.setTiltChannel(dmx.tiltChannel());
-        target.setZoomChannel(dmx.zoomChannel());
-        target.setTrackChannel(dmx.trackChannel());
-        target.setEnableChannel(dmx.enableChannel());
     }
 
     // --- NBT ---------------------------------------------------------------
@@ -219,7 +201,6 @@ public final class CameraParameters {
         tag.putFloat("BoomSwing", boomSwing);
         tag.putFloat("BoomPitch", boomPitch);
         tag.putFloat("BoomLength", boomLength);
-        dmx.save(tag);
         return tag;
     }
 
@@ -239,7 +220,6 @@ public final class CameraParameters {
         setBoomSwing(tag.getFloat("BoomSwing"));
         setBoomPitch(tag.getFloat("BoomPitch"));
         setBoomLength(tag.getFloat("BoomLength"));
-        dmx.load(tag);
     }
 
     // --- Network (config edits: static fields only; live motion uses a separate lightweight packet) ---
@@ -254,13 +234,6 @@ public final class CameraParameters {
         buf.writeFloat(tilt);
         buf.writeFloat(roll);
         buf.writeBoolean(enabled);
-        buf.writeInt(dmx.universe());
-        buf.writeBoolean(dmx.sixteenBit());
-        buf.writeVarInt(dmx.panChannel());
-        buf.writeVarInt(dmx.tiltChannel());
-        buf.writeVarInt(dmx.zoomChannel());
-        buf.writeVarInt(dmx.trackChannel());
-        buf.writeVarInt(dmx.enableChannel());
     }
 
     /** Applies GUI-authored config to this (server-side) instance from a validated buffer. */
@@ -275,12 +248,5 @@ public final class CameraParameters {
         setTilt(buf.readFloat());
         setRoll(buf.readFloat());
         setEnabled(buf.readBoolean());
-        dmx.setUniverse(buf.readInt());
-        dmx.setSixteenBit(buf.readBoolean());
-        dmx.setPanChannel(buf.readVarInt());
-        dmx.setTiltChannel(buf.readVarInt());
-        dmx.setZoomChannel(buf.readVarInt());
-        dmx.setTrackChannel(buf.readVarInt());
-        dmx.setEnableChannel(buf.readVarInt());
     }
 }

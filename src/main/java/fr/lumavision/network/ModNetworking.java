@@ -83,7 +83,7 @@ public final class ModNetworking {
         LumaVisionMod.LOGGER.debug("LumaVision networking ready (protocol v{})", PROTOCOL_VERSION);
     }
 
-    /** Server → clients tracking the camera's chunk: push live DMX-driven camera motion. */
+    /** Server → clients tracking the camera's chunk: push live camera motion. */
     public static void sendCameraLiveState(ServerLevel level, BlockPos pos, CameraParameters parameters) {
         CHANNEL.send(
                 PacketDistributor.TRACKING_CHUNK.with(() -> level.getChunkAt(pos)),
