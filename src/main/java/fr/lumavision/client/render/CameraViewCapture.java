@@ -11,11 +11,9 @@ import fr.lumavision.client.ndi.CameraNdiManager;
 import fr.lumavision.client.ndi.CameraSnapshot;
 import fr.lumavision.config.ModConfig;
 import net.minecraft.client.Camera;
-import net.minecraft.client.CameraType;
 import net.minecraft.client.GraphicsStatus;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
-import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Marker;
 import net.minecraftforge.api.distmarker.Dist;
@@ -58,6 +56,8 @@ public final class CameraViewCapture {
     }
 
     private final Map<BlockPos, Target> targets = new HashMap<>();
+    /** A dedicated camera so we never mutate the game's main camera (which caused view-bob). */
+    private final Camera captureCamera = new Camera();
     private boolean fabulousWarned;
 
     private CameraViewCapture() {
@@ -117,9 +117,9 @@ public final class CameraViewCapture {
     }
 
     private void renderCameraView(Minecraft mc, Target t, CameraSnapshot snapshot, float partialTick) {
-        Entity previousCamera = mc.getCameraEntity();
+        // Only the main render target is temporarily redirected; the camera used is our own dedicated
+        // instance, so the game's main camera state is never touched (that previously bobbed the view).
         RenderTarget previousTarget = mc.mainRenderTarget; // access-transformed to public
-        CameraType previousType = mc.options.getCameraType();
 
         Marker marker = new Marker(EntityType.MARKER, mc.level);
         double ex = snapshot.x() + 0.5D;
@@ -135,19 +135,13 @@ public final class CameraViewCapture {
         marker.xRotO = snapshot.pitch();
 
         mc.renderBuffers().bufferSource().endBatch(); // flush any batched geometry from the main frame
-        mc.setCameraEntity(marker);
-        mc.options.setCameraType(CameraType.FIRST_PERSON);
-        mc.gameRenderer.setRenderBlockOutline(false);
-        mc.gameRenderer.setRenderHand(false);
-        mc.gameRenderer.setPanoramicMode(true); // suppresses hand/held-item and some overlays
         mc.mainRenderTarget = t.rt;
 
         try {
             t.rt.clear(Minecraft.ON_OSX);
             t.rt.bindWrite(true);
 
-            Camera camera = mc.gameRenderer.getMainCamera();
-            camera.setup(mc.level, marker, false, false, partialTick);
+            captureCamera.setup(mc.level, marker, false, false, partialTick);
 
             float far = Math.max(mc.gameRenderer.getRenderDistance(), 64.0F) * 4.0F;
             Matrix4f projection = new Matrix4f().perspective(
@@ -155,24 +149,19 @@ public final class CameraViewCapture {
             RenderSystem.setProjectionMatrix(projection, VertexSorting.DISTANCE_TO_ORIGIN);
 
             PoseStack poseStack = new PoseStack();
-            poseStack.mulPose(Axis.XP.rotationDegrees(camera.getXRot()));
-            poseStack.mulPose(Axis.YP.rotationDegrees(camera.getYRot() + 180.0F));
+            poseStack.mulPose(Axis.XP.rotationDegrees(captureCamera.getXRot()));
+            poseStack.mulPose(Axis.YP.rotationDegrees(captureCamera.getYRot() + 180.0F));
             Matrix3f inverseView = new Matrix3f(poseStack.last().normal()).invert();
             RenderSystem.setInverseViewRotationMatrix(inverseView);
 
-            mc.levelRenderer.prepareCullFrustum(poseStack, camera.getPosition(), projection);
-            mc.levelRenderer.renderLevel(poseStack, partialTick, 0L, false, camera, mc.gameRenderer,
+            mc.levelRenderer.prepareCullFrustum(poseStack, captureCamera.getPosition(), projection);
+            mc.levelRenderer.renderLevel(poseStack, partialTick, 0L, false, captureCamera, mc.gameRenderer,
                     mc.gameRenderer.lightTexture(), projection);
 
             mc.renderBuffers().bufferSource().endBatch(); // flush our camera render
             t.rt.unbindWrite();
         } finally {
             mc.mainRenderTarget = previousTarget;
-            mc.gameRenderer.setPanoramicMode(false);
-            mc.gameRenderer.setRenderHand(true);
-            mc.gameRenderer.setRenderBlockOutline(true);
-            mc.options.setCameraType(previousType);
-            mc.setCameraEntity(previousCamera);
             marker.discard();
             mc.getMainRenderTarget().bindWrite(true);
         }
