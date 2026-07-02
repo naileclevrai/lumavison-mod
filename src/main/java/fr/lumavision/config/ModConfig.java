@@ -78,6 +78,28 @@ public final class ModConfig {
             .comment("How often to refresh the list of NDI sources on the network.")
             .defineInRange("ndiDiscoveryIntervalMs", 2000, 250, 60000);
 
+    // --- Virtual camera / NDI output -------------------------------------
+
+    public static final ForgeConfigSpec.BooleanValue NDI_ENABLE_OUTPUT = BUILDER
+            .comment("Enables publishing camera blocks as NDI output sources (client-side render + send).")
+            .define("ndiEnableOutput", true);
+
+    public static final ForgeConfigSpec.IntValue CAMERA_MAX_ACTIVE = BUILDER
+            .comment("Maximum number of camera blocks rendered + streamed at once on a client (performance cap).")
+            .defineInRange("cameraMaxActive", 4, 1, 32);
+
+    public static final ForgeConfigSpec.IntValue CAMERA_MAX_RESOLUTION = BUILDER
+            .comment("Maximum resolution (longest side) for a camera's offscreen render target.")
+            .defineInRange("cameraMaxResolution", 1920, 64, 3840);
+
+    public static final ForgeConfigSpec.IntValue CAMERA_DEFAULT_FPS = BUILDER
+            .comment("Default capture/output frame rate for a newly placed camera.")
+            .defineInRange("cameraDefaultFps", 30, 1, 60);
+
+    public static final ForgeConfigSpec.BooleanValue CAMERA_RENDER_WORLD = BUILDER
+            .comment("Render the actual in-game view for camera NDI output. If false (or on failure/Fabulous graphics), a test pattern is sent instead.")
+            .define("cameraRenderWorld", true);
+
     public static final ForgeConfigSpec SPEC = BUILDER.build();
 
     private ModConfig() {

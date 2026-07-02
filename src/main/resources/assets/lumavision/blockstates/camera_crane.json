@@ -1,0 +1,1 @@
+{ "multipart": [ { "apply": { "model": "lumavision:block/camera_crane" } } ] }

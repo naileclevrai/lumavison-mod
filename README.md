@@ -2,7 +2,7 @@
 
 # LumaVision
 
-### LED screens & live video for Minecraft
+### LED screens, live video & virtual cameras for Minecraft
 
 **Bring concert-grade LED walls into your worlds — built on Forge, designed for real media pipelines.**
 
@@ -40,6 +40,8 @@ The mod is built for long-term growth: a clean rendering pipeline, extensible co
 | 🧱 **LED Screen block** | ✅ | Wall-mounted panel with 6-axis orientation |
 | 🧩 **Merged screen walls** | ✅ | Adjacent panels form one logical display with shared texture |
 | 📡 **NDI input (Devolay)** | ✅ | Network source discovery + live frame capture (client) |
+| 📷 **NDI camera blocks** | ✅ | Render the in-game view and output it as an NDI source (see [Cameras](#-cameras)) |
+| 🎥 **PTZ / rails / crane** | ✅ | NDI PTZ control, dolly rails, boom seat, and a full 3D camera crane |
 | 🖥️ **Dynamic rendering** | ✅ | Test pattern fallback + NDI live video |
 | 🏗️ **Video pipeline** | ✅ | `VideoSource` → `VideoFrame` → `DynamicTexture` → `ScreenRenderer` |
 | 📦 **Registries** | ✅ | Blocks, items, block entities, creative tab |
@@ -137,6 +139,42 @@ debugLogging = true                  # lists discovered sources in the log
 **Source resolution order:** wall `sourceId` → `ndiDefaultSource` → first discovered source (if `ndiAutoSelectFirst = true`) → test pattern.
 
 > NDI usage is subject to the [NDI SDK license terms](https://ndi.video). Devolay is bundled via **jarJar** (`lumavision-*-all.jar`) and loaded through Forge's `minecraftLibrary` in development.
+
+---
+
+## 📷 Cameras
+
+LumaVision isn't just screens — it's a **virtual camera stage**. Camera blocks render the actual in-game view and publish it as a live **NDI source** that any NDI receiver on your network (OBS, vMix, Studio Monitor, a production switcher) can pull in, exactly like a real camera.
+
+| Block | Description |
+|-------|-------------|
+| 📷 **NDI Camera** | Camcorder-style camera. Renders its view offscreen and streams it as an NDI source. Configure NDI name, resolution, fps, FOV, and manual aim. |
+| 🎯 **NDI PTZ Camera** | Compact pedestal PTZ camera — a separate, smaller block with the same NDI output. |
+| 🛤️ **Camera Rail** | Dolly track. A camera above the rail run slides along it as its track position changes. |
+| 🔩 **Camera Mount** | Decorative/structural mounting block for rigging cameras. |
+| 🏗️ **Camera Crane** | A full 3D crane: a swinging turntable + booming arm with a camera mounted on the end. |
+
+### Using a camera
+
+1. Place an **NDI Camera** (or **NDI PTZ Camera**) from the LumaVision creative tab. It faces away from you when placed.
+2. Enable NDI output in `config/lumavision-common.toml` (`enableNdi = true`) and make sure the **NDI Runtime** is installed on the machine.
+3. The camera appears as an NDI source named after the block (or a custom name) — point any NDI receiver at it. Aim it via the config GUI (**right-click**), or remotely with **NDI PTZ** from a receiver that supports it (pan / tilt / zoom).
+
+### Camera Crane
+
+The crane is a single animated block that acts as a **mount**:
+
+1. Place the **Camera Crane**.
+2. Hold an **NDI Camera** or **NDI PTZ Camera** and **right-click** the crane to attach it to the arm end. Right-click with the camera again to detach.
+3. **Right-click with an empty hand** to sit in the operator seat and fly the shot:
+   - **A / D** — swing the arm left / right
+   - **W / S** — boom the camera up / down
+   - **Scroll** — zoom
+4. **Sneak + right-click** opens the camera's config menu (NDI name, resolution, …).
+
+While mounted, the crane publishes the camera's NDI feed from the arm tip; with no camera attached it shows just the bare arm and produces no feed.
+
+> Camera rendering runs on the **client** (it needs the GPU), so a dedicated server needs an "operator" client near the cameras to produce the feeds. NDI output requires the system **NDI Runtime**; the mod bundles only the Devolay JNI layer.
 
 ---
 

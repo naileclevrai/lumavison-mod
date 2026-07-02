@@ -1,6 +1,7 @@
 package fr.lumavision.registry;
 
 import fr.lumavision.LumaVisionMod;
+import fr.lumavision.blockentity.CameraBlockEntity;
 import fr.lumavision.blockentity.LedScreenBlockEntity;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraftforge.eventbus.api.IEventBus;
@@ -23,6 +24,15 @@ public final class ModBlockEntities {
                     () -> BlockEntityType.Builder.of(
                             LedScreenBlockEntity::new,
                             ModBlocks.LED_SCREEN.get()
+                    ).build(null));
+
+    public static final RegistryObject<BlockEntityType<CameraBlockEntity>> CAMERA =
+            BLOCK_ENTITIES.register("camera",
+                    () -> BlockEntityType.Builder.of(
+                            CameraBlockEntity::new,
+                            ModBlocks.CAMERA.get(),
+                            ModBlocks.PTZ_CAMERA.get(),
+                            ModBlocks.CAMERA_CRANE.get()
                     ).build(null));
 
     private ModBlockEntities() {

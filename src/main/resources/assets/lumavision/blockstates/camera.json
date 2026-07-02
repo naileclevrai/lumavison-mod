@@ -1,0 +1,8 @@
+{
+  "variants": {
+    "facing=north": { "model": "lumavision:block/camera" },
+    "facing=east":  { "model": "lumavision:block/camera", "y": 90 },
+    "facing=south": { "model": "lumavision:block/camera", "y": 180 },
+    "facing=west":  { "model": "lumavision:block/camera", "y": 270 }
+  }
+}

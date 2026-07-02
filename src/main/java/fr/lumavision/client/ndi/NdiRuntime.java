@@ -11,10 +11,16 @@ import org.jetbrains.annotations.Nullable;
 @OnlyIn(Dist.CLIENT)
 public final class NdiRuntime {
 
+    private static final String RUNTIME_HINT =
+            " — the NDI Runtime must be installed on this machine (it is not bundled). "
+            + "Install NDI Tools / NDI Runtime from https://ndi.video/tools/ (Windows/macOS), "
+            + "or libndi from the NDI SDK (Linux), then restart.";
+
     private static boolean initialized;
     private static boolean available;
     private static boolean failureLogged;
     private static String failureReason;
+    private static String version = "unknown";
 
     private NdiRuntime() {
     }
@@ -38,13 +44,14 @@ public final class NdiRuntime {
             int result = me.walkerknapp.devolay.Devolay.loadLibraries();
             if (result != 0) {
                 available = false;
-                failureReason = "NDI native libraries failed to load (code " + result + ")";
+                failureReason = "NDI native libraries failed to load (code " + result + ")" + RUNTIME_HINT;
                 logFailure(null);
                 return false;
             }
             available = true;
             failureReason = null;
-            LumaVisionMod.LOGGER.info("NDI runtime ready ({})", me.walkerknapp.devolay.Devolay.getNDIVersion());
+            version = me.walkerknapp.devolay.Devolay.getNDIVersion();
+            LumaVisionMod.LOGGER.info("NDI runtime ready ({})", version);
             if (!me.walkerknapp.devolay.Devolay.isSupportedCpu()) {
                 LumaVisionMod.LOGGER.warn("CPU may not fully support NDI acceleration");
             }
@@ -56,6 +63,10 @@ public final class NdiRuntime {
             logFailure(throwable);
         }
         return available;
+    }
+
+    public static String getVersion() {
+        return version;
     }
 
     public static boolean isAvailable() {
