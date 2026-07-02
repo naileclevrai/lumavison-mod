@@ -31,7 +31,8 @@ public final class ModBlockEntities {
                     () -> BlockEntityType.Builder.of(
                             CameraBlockEntity::new,
                             ModBlocks.CAMERA.get(),
-                            ModBlocks.PTZ_CAMERA.get()
+                            ModBlocks.PTZ_CAMERA.get(),
+                            ModBlocks.CAMERA_CRANE.get()
                     ).build(null));
 
     private ModBlockEntities() {

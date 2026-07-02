@@ -70,7 +70,7 @@ public final class SeatOperator {
         }
 
         // Put the player's view at the arm tip, looking where the camera looks.
-        int reach = CameraRig.boomReach(mc.level, controlledCamera);
+        float reach = CameraRig.reachFor(mc.level, controlledCamera);
         CameraRig.View view = CameraRig.compute(controlledCamera, baseYaw(camera), camera.parameters(), reach);
         if (viewAnchor == null) {
             viewAnchor = new CameraSeatEntity(ModEntities.CAMERA_SEAT.get(), mc.level);

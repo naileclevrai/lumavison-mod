@@ -46,6 +46,8 @@
   "item.lumavision.camera_mount": "Camera Mount",
   "block.lumavision.camera_boom": "Camera Boom Arm",
   "item.lumavision.camera_boom": "Camera Boom Arm",
+  "block.lumavision.camera_crane": "Camera Crane",
+  "item.lumavision.camera_crane": "Camera Crane",
   "menu.lumavision.camera_config": "Camera Configuration",
   "gui.lumavision.camera_config.ndi_name": "NDI SOURCE NAME",
   "gui.lumavision.camera_config.res_fps_fov": "WIDTH   HEIGHT   FPS   FOV",

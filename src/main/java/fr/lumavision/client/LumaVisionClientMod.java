@@ -3,6 +3,8 @@ package fr.lumavision.client;
 import fr.lumavision.LumaVisionMod;
 import fr.lumavision.client.gui.CameraConfigScreen;
 import fr.lumavision.client.gui.ScreenConfigScreen;
+import fr.lumavision.client.render.CameraCraneModel;
+import fr.lumavision.client.render.CameraCraneRenderer;
 import fr.lumavision.client.render.ScreenRenderer;
 import fr.lumavision.client.render.SeatRenderer;
 import fr.lumavision.client.video.catalog.ClientVideoSourceCatalog;
@@ -34,6 +36,12 @@ public final class LumaVisionClientMod {
     @SubscribeEvent
     public static void registerRenderers(EntityRenderersEvent.RegisterRenderers event) {
         event.registerBlockEntityRenderer(ModBlockEntities.LED_SCREEN.get(), ScreenRenderer::new);
+        event.registerBlockEntityRenderer(ModBlockEntities.CAMERA.get(), CameraCraneRenderer::new);
         event.registerEntityRenderer(ModEntities.CAMERA_SEAT.get(), SeatRenderer::new);
+    }
+
+    @SubscribeEvent
+    public static void registerLayers(EntityRenderersEvent.RegisterLayerDefinitions event) {
+        event.registerLayerDefinition(CameraCraneModel.LAYER, CameraCraneModel::create);
     }
 }

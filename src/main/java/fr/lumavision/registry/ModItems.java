@@ -37,6 +37,9 @@ public final class ModItems {
     public static final RegistryObject<Item> CAMERA_BOOM = ITEMS.register("camera_boom",
             () -> new BlockItem(ModBlocks.CAMERA_BOOM.get(), new Item.Properties()));
 
+    public static final RegistryObject<Item> CAMERA_CRANE = ITEMS.register("camera_crane",
+            () -> new BlockItem(ModBlocks.CAMERA_CRANE.get(), new Item.Properties()));
+
     private ModItems() {
     }
 

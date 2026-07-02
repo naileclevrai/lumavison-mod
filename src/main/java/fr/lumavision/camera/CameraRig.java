@@ -13,11 +13,25 @@ import net.minecraft.world.level.BlockGetter;
  */
 public final class CameraRig {
 
+    /** Fixed arm reach (blocks) of the modelled {@code camera_crane} block — matches its 3D model. */
+    public static final float CRANE_ARM_LENGTH = 5.0F;
+
     /** Resolved shooting viewpoint: world position + look direction. */
     public record View(double x, double y, double z, float yaw, float pitch) {
     }
 
     private CameraRig() {
+    }
+
+    /**
+     * Effective arm reach for a camera at {@code pos}: the fixed crane arm length for a modelled
+     * {@code camera_crane}, otherwise the number of boom blocks stacked below (0 = no arm).
+     */
+    public static float reachFor(BlockGetter level, BlockPos pos) {
+        if (level.getBlockState(pos).is(ModBlocks.CAMERA_CRANE.get())) {
+            return CRANE_ARM_LENGTH;
+        }
+        return boomReach(level, pos);
     }
 
     /** Number of camera_boom blocks stacked directly under the camera = the crane arm reach. */
