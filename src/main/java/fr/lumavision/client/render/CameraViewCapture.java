@@ -199,10 +199,13 @@ public final class CameraViewCapture {
         lr.lastCameraChunkZ = t.lastChunkZ;
 
         try {
+            // MainTarget sets viewWidth/viewHeight to the window size (it mirrors the main framebuffer);
+            // force them to the camera resolution so every bindWrite in renderLevel viewports to the
+            // target, not the window (otherwise only a window-sized region of the target was rendered).
+            t.rt.viewWidth = t.w;
+            t.rt.viewHeight = t.h;
             t.rt.clear(Minecraft.ON_OSX);
             t.rt.bindWrite(true);
-            // Force the viewport to the camera resolution: MainTarget/window state otherwise leaves it
-            // at the window size, so only a window-sized corner of the target was being rendered.
             RenderSystem.viewport(0, 0, t.w, t.h);
 
             captureCamera.setup(mc.level, marker, false, false, partialTick);
