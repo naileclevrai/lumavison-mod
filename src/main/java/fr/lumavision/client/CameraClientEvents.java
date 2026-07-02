@@ -2,6 +2,7 @@ package fr.lumavision.client;
 
 import fr.lumavision.LumaVisionMod;
 import fr.lumavision.client.ndi.CameraNdiManager;
+import fr.lumavision.client.render.CameraViewCapture;
 import net.minecraft.client.Minecraft;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.ClientPlayerNetworkEvent;
@@ -28,9 +29,20 @@ public final class CameraClientEvents {
     }
 
     @SubscribeEvent
+    public static void onRenderTick(TickEvent.RenderTickEvent event) {
+        // END: after the main frame render, outside renderLevel (not re-entrant). Capture on the render thread.
+        if (event.phase == TickEvent.Phase.END) {
+            CameraViewCapture.getInstance().renderTick(event.renderTickTime);
+        }
+    }
+
+    @SubscribeEvent
     public static void onLevelUnload(LevelEvent.Unload event) {
         if (event.getLevel().isClientSide()) {
-            Minecraft.getInstance().execute(CameraNdiManager.getInstance()::shutdown);
+            Minecraft.getInstance().execute(() -> {
+                CameraNdiManager.getInstance().shutdown();
+                CameraViewCapture.getInstance().clear();
+            });
         }
     }
 

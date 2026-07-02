@@ -12,9 +12,14 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
 
+import fr.lumavision.client.render.CameraViewCapture;
+
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.Set;
+import java.util.function.BiConsumer;
 
 /**
  * Client-side registry of live NDI camera senders, one per camera block currently ticking on the
@@ -32,6 +37,7 @@ public final class CameraNdiManager {
 
     private final Map<BlockPos, CameraNdiSender> senders = new HashMap<>();
     private final Map<BlockPos, Long> lastSeen = new HashMap<>();
+    private final Set<BlockPos> captureFailureLogged = new HashSet<>();
     private long clientTick;
     private boolean runtimeChecked;
     private boolean runtimeAvailable;
@@ -88,9 +94,34 @@ public final class CameraNdiManager {
             Long seen = lastSeen.get(entry.getKey());
             if (seen == null || clientTick - seen > REAP_AFTER_TICKS) {
                 entry.getValue().close();
+                CameraViewCapture.getInstance().remove(entry.getKey());
                 lastSeen.remove(entry.getKey());
+                captureFailureLogged.remove(entry.getKey());
                 it.remove();
             }
+        }
+    }
+
+    /** Iterates the currently live cameras (render thread), for offscreen capture. */
+    public void forEachActiveCamera(BiConsumer<BlockPos, CameraSnapshot> action) {
+        for (Map.Entry<BlockPos, CameraNdiSender> entry : senders.entrySet()) {
+            action.accept(entry.getKey(), entry.getValue().snapshot());
+        }
+    }
+
+    /** Hands a captured world-view frame (BGRA, top-down) to the camera's sender. */
+    public void submitCapturedFrame(BlockPos pos, byte[] bgra, int w, int h) {
+        CameraNdiSender sender = senders.get(pos);
+        if (sender != null) {
+            sender.submitFrame(bgra, w, h);
+        }
+    }
+
+    /** Called when offscreen capture throws; logs once per camera and lets it fall back to the test pattern. */
+    public void onCaptureFailed(BlockPos pos, Throwable error) {
+        if (captureFailureLogged.add(pos)) {
+            LumaVisionMod.LOGGER.error("Camera world capture failed at {} (falling back to test pattern): {}",
+                    pos, error.toString(), error);
         }
     }
 
@@ -100,6 +131,7 @@ public final class CameraNdiManager {
         }
         senders.clear();
         lastSeen.clear();
+        captureFailureLogged.clear();
     }
 
     private void removeIfPresent(BlockPos pos) {
@@ -137,6 +169,6 @@ public final class CameraNdiManager {
         float baseYaw = state.hasProperty(CameraBlock.FACING) ? state.getValue(CameraBlock.FACING).toYRot() : 0.0F;
         String name = p.ndiSourceName().isEmpty() ? CameraBlockEntity.defaultSourceName(pos) : p.ndiSourceName();
         return new CameraSnapshot(name, p.resolutionWidth(), p.resolutionHeight(), p.fps(),
-                pos.getX(), pos.getY(), pos.getZ(), baseYaw + p.pan(), p.tilt());
+                pos.getX(), pos.getY(), pos.getZ(), baseYaw + p.pan(), p.tilt(), p.effectiveFov());
     }
 }

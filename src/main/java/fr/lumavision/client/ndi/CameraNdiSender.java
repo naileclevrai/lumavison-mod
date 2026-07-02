@@ -10,6 +10,7 @@ import net.minecraftforge.api.distmarker.OnlyIn;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * Owns a single {@link DevolaySender} and streams frames for one camera on a dedicated daemon thread,
@@ -24,6 +25,12 @@ final class CameraNdiSender {
     private final DevolaySender sender;
     private final DevolayVideoFrame frame = new DevolayVideoFrame();
     private final Thread thread;
+
+    /** A captured world-view frame (BGRA, top-down) handed from the render thread. */
+    private record Frame(byte[] data, int w, int h) {
+    }
+
+    private final AtomicReference<Frame> capturedFrame = new AtomicReference<>();
 
     private volatile CameraSnapshot snapshot;
     private volatile boolean running = true;
@@ -49,8 +56,17 @@ final class CameraNdiSender {
         return snapshot.name();
     }
 
+    CameraSnapshot snapshot() {
+        return snapshot;
+    }
+
     void update(CameraSnapshot next) {
         this.snapshot = next;
+    }
+
+    /** Push a freshly captured world-view frame (BGRA, top-down) from the render thread. */
+    void submitFrame(byte[] bgra, int w, int h) {
+        capturedFrame.set(new Frame(bgra, w, h));
     }
 
     private void loop() {
@@ -97,9 +113,15 @@ final class CameraNdiSender {
         }
         frame.setFrameRate(Math.max(1, s.fps()), 1);
 
-        CameraTestPattern.fill(scratch, w, h, s, frameIndex);
+        Frame captured = capturedFrame.get();
         direct.clear();
-        direct.put(scratch);
+        if (captured != null && captured.w() == w && captured.h() == h
+                && captured.data().length >= w * h * 4) {
+            direct.put(captured.data(), 0, w * h * 4); // live world view
+        } else {
+            CameraTestPattern.fill(scratch, w, h, s, frameIndex); // fallback until a frame is captured
+            direct.put(scratch);
+        }
         direct.flip();
         frame.setData(direct);
     }

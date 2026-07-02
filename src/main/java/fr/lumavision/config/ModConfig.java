@@ -68,6 +68,10 @@ public final class ModConfig {
             .comment("Default capture/output frame rate for a newly placed camera.")
             .defineInRange("cameraDefaultFps", 30, 1, 60);
 
+    public static final ForgeConfigSpec.BooleanValue CAMERA_RENDER_WORLD = BUILDER
+            .comment("Render the actual in-game view for camera NDI output. If false (or on failure/Fabulous graphics), a test pattern is sent instead.")
+            .define("cameraRenderWorld", true);
+
     // --- Art-Net / DMX ---------------------------------------------------
 
     public static final ForgeConfigSpec.BooleanValue ARTNET_ENABLE = BUILDER
