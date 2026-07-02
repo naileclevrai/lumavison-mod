@@ -3,6 +3,7 @@ package fr.lumavision.client.render;
 import com.mojang.blaze3d.pipeline.MainTarget;
 import com.mojang.blaze3d.pipeline.RenderTarget;
 import com.mojang.blaze3d.platform.GlStateManager;
+import com.mojang.blaze3d.platform.Window;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexSorting;
@@ -178,6 +179,14 @@ public final class CameraViewCapture {
         mc.renderBuffers().bufferSource().endBatch();
         mc.mainRenderTarget = t.rt;
 
+        // The world render's viewport follows the window size; point it at the camera resolution so
+        // the whole target is rendered (not just a window-sized corner). Restored in finally.
+        Window window = mc.getWindow();
+        int prevWinW = window.getWidth();
+        int prevWinH = window.getHeight();
+        window.setWidth(t.w);
+        window.setHeight(t.h);
+
         // --- swap in the camera's chunk-render state ---
         lr.viewArea = t.viewArea;
         lr.renderChunksInFrustum = (ObjectArrayList) t.renderChunks;
@@ -233,6 +242,8 @@ public final class CameraViewCapture {
             lr.lastCameraChunkY = pLastCY;
             lr.lastCameraChunkZ = pLastCZ;
 
+            window.setWidth(prevWinW);
+            window.setHeight(prevWinH);
             mc.mainRenderTarget = previousTarget;
             marker.discard();
             mc.getMainRenderTarget().bindWrite(true);
