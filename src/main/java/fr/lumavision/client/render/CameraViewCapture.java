@@ -167,9 +167,9 @@ public final class CameraViewCapture {
         int pLastCX = lr.lastCameraChunkX, pLastCY = lr.lastCameraChunkY, pLastCZ = lr.lastCameraChunkZ;
 
         Marker marker = new Marker(EntityType.MARKER, mc.level);
-        double ex = snapshot.x() + 0.5D;
-        double ey = snapshot.y() + 0.5D;
-        double ez = snapshot.z() + 0.5D;
+        double ex = snapshot.renderX();
+        double ey = snapshot.renderY();
+        double ez = snapshot.renderZ();
         marker.setPos(ex, ey, ez);
         marker.xo = ex;
         marker.yo = ey;

@@ -2,6 +2,7 @@ package fr.lumavision.registry;
 
 import fr.lumavision.LumaVisionMod;
 import fr.lumavision.block.CameraBlock;
+import fr.lumavision.block.CameraRailBlock;
 import fr.lumavision.block.LedScreenBlock;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.SoundType;
@@ -33,6 +34,27 @@ public final class ModBlocks {
 
     public static final RegistryObject<CameraBlock> CAMERA = BLOCKS.register("camera",
             () -> new CameraBlock(BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.METAL)
+                    .strength(1.5F, 6.0F)
+                    .sound(SoundType.METAL)
+                    .noOcclusion()));
+
+    public static final RegistryObject<CameraRailBlock> CAMERA_RAIL = BLOCKS.register("camera_rail",
+            () -> new CameraRailBlock(BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.METAL)
+                    .strength(1.5F, 6.0F)
+                    .sound(SoundType.METAL)
+                    .noOcclusion()));
+
+    public static final RegistryObject<Block> CAMERA_MOUNT = BLOCKS.register("camera_mount",
+            () -> new Block(BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.METAL)
+                    .strength(1.5F, 6.0F)
+                    .sound(SoundType.METAL)
+                    .noOcclusion()));
+
+    public static final RegistryObject<Block> CAMERA_BOOM = BLOCKS.register("camera_boom",
+            () -> new Block(BlockBehaviour.Properties.of()
                     .mapColor(MapColor.METAL)
                     .strength(1.5F, 6.0F)
                     .sound(SoundType.METAL)

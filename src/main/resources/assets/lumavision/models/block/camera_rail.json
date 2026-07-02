@@ -1,0 +1,11 @@
+{
+  "parent": "block/block",
+  "textures": { "rail": "lumavision:block/camera_rail", "particle": "lumavision:block/camera_rail" },
+  "elements": [ { "from": [0, 0, 0], "to": [16, 2, 16], "faces": {
+    "down":  {"uv": [0, 0, 16, 16], "texture": "#rail"},
+    "up":    {"uv": [0, 0, 16, 16], "texture": "#rail"},
+    "north": {"uv": [0, 0, 16, 2],  "texture": "#rail"},
+    "south": {"uv": [0, 0, 16, 2],  "texture": "#rail"},
+    "east":  {"uv": [0, 0, 16, 2],  "texture": "#rail"},
+    "west":  {"uv": [0, 0, 16, 2],  "texture": "#rail"} } } ]
+}

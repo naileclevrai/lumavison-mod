@@ -25,6 +25,15 @@ public final class ModItems {
     public static final RegistryObject<Item> CAMERA = ITEMS.register("camera",
             () -> new BlockItem(ModBlocks.CAMERA.get(), new Item.Properties()));
 
+    public static final RegistryObject<Item> CAMERA_RAIL = ITEMS.register("camera_rail",
+            () -> new BlockItem(ModBlocks.CAMERA_RAIL.get(), new Item.Properties()));
+
+    public static final RegistryObject<Item> CAMERA_MOUNT = ITEMS.register("camera_mount",
+            () -> new BlockItem(ModBlocks.CAMERA_MOUNT.get(), new Item.Properties()));
+
+    public static final RegistryObject<Item> CAMERA_BOOM = ITEMS.register("camera_boom",
+            () -> new BlockItem(ModBlocks.CAMERA_BOOM.get(), new Item.Properties()));
+
     private ModItems() {
     }
 

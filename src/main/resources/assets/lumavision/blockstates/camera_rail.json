@@ -1,0 +1,4 @@
+{ "variants": {
+  "axis=z": { "model": "lumavision:block/camera_rail" },
+  "axis=x": { "model": "lumavision:block/camera_rail", "y": 90 }
+}}

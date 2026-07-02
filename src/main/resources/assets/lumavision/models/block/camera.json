@@ -1,6 +1,48 @@
 {
-  "parent": "block/cube_all",
+  "parent": "block/block",
   "textures": {
-    "all": "lumavision:block/led_screen_frame"
-  }
+    "body": "lumavision:block/camera",
+    "lens": "lumavision:block/camera_lens",
+    "particle": "lumavision:block/camera"
+  },
+  "elements": [
+    {
+      "name": "body",
+      "from": [3, 1, 3],
+      "to": [13, 11, 13],
+      "faces": {
+        "north": {"uv": [0, 0, 16, 16], "texture": "#body"},
+        "south": {"uv": [0, 0, 16, 16], "texture": "#body"},
+        "east": {"uv": [0, 0, 16, 16], "texture": "#body"},
+        "west": {"uv": [0, 0, 16, 16], "texture": "#body"},
+        "up": {"uv": [0, 0, 16, 16], "texture": "#body"},
+        "down": {"uv": [0, 0, 16, 16], "texture": "#body"}
+      }
+    },
+    {
+      "name": "lens",
+      "from": [5, 3, 0],
+      "to": [11, 9, 3],
+      "faces": {
+        "north": {"uv": [0, 0, 16, 16], "texture": "#lens"},
+        "east": {"uv": [0, 0, 16, 16], "texture": "#body"},
+        "west": {"uv": [0, 0, 16, 16], "texture": "#body"},
+        "up": {"uv": [0, 0, 16, 16], "texture": "#body"},
+        "down": {"uv": [0, 0, 16, 16], "texture": "#body"}
+      }
+    },
+    {
+      "name": "viewfinder",
+      "from": [5, 11, 5],
+      "to": [11, 13, 11],
+      "faces": {
+        "north": {"uv": [0, 0, 16, 16], "texture": "#body"},
+        "south": {"uv": [0, 0, 16, 16], "texture": "#body"},
+        "east": {"uv": [0, 0, 16, 16], "texture": "#body"},
+        "west": {"uv": [0, 0, 16, 16], "texture": "#body"},
+        "up": {"uv": [0, 0, 16, 16], "texture": "#body"},
+        "down": {"uv": [0, 0, 16, 16], "texture": "#body"}
+      }
+    }
+  ]
 }
