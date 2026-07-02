@@ -57,6 +57,13 @@ public final class CameraNdiManager {
             removeIfPresent(pos);
             return;
         }
+        // A crane only produces a feed once a camera is mounted on the arm end.
+        BlockState craneState = be.getBlockState();
+        if (craneState.is(fr.lumavision.registry.ModBlocks.CAMERA_CRANE.get())
+                && !craneState.getValue(fr.lumavision.block.CameraCraneBlock.MOUNTED)) {
+            removeIfPresent(pos);
+            return;
+        }
         if (!ensureRuntime()) {
             return;
         }

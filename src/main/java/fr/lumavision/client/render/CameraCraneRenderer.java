@@ -3,6 +3,7 @@ package fr.lumavision.client.render;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import fr.lumavision.block.CameraBlock;
+import fr.lumavision.block.CameraCraneBlock;
 import fr.lumavision.blockentity.CameraBlockEntity;
 import fr.lumavision.camera.CameraParameters;
 import fr.lumavision.registry.ModBlocks;
@@ -31,11 +32,13 @@ public final class CameraCraneRenderer implements BlockEntityRenderer<CameraBloc
     private final ModelPart root;
     private final ModelPart turntable;
     private final ModelPart arm;
+    private final ModelPart head;
 
     public CameraCraneRenderer(BlockEntityRendererProvider.Context context) {
         this.root = context.bakeLayer(CameraCraneModel.LAYER);
         this.turntable = root.getChild("turntable");
         this.arm = turntable.getChild("arm");
+        this.head = arm.getChild("head");
     }
 
     @Override
@@ -52,6 +55,8 @@ public final class CameraCraneRenderer implements BlockEntityRenderer<CameraBloc
         // Aim the whole arm where the shot points; boom it up/down. (Signs are a first pass — tune to view.)
         turntable.yRot = (float) Math.toRadians(180.0F - (baseYaw + p.boomSwing()));
         arm.xRot = (float) Math.toRadians(-p.boomPitch());
+        // Only show the camera head on the arm end once a camera has actually been mounted.
+        head.visible = state.getValue(CameraCraneBlock.MOUNTED);
 
         pose.pushPose();
         pose.translate(0.5D, 0.0D, 0.5D);

@@ -1,1 +1,1 @@
-{ "variants": { "": { "model": "lumavision:block/camera_crane" } } }
+{ "multipart": [ { "apply": { "model": "lumavision:block/camera_crane" } } ] }
