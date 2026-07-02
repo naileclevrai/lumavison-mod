@@ -42,6 +42,7 @@ public final class CameraNdiManager {
     private boolean runtimeChecked;
     private boolean runtimeAvailable;
     private boolean unavailableAnnounced;
+    private boolean networkProbeStarted;
 
     private CameraNdiManager() {
     }
@@ -82,6 +83,7 @@ public final class CameraNdiManager {
             }
             try {
                 senders.put(pos, new CameraNdiSender(snapshot));
+                startNetworkProbe(snapshot.name());
             } catch (Throwable t) {
                 LumaVisionMod.LOGGER.error("Failed to start NDI sender for '{}': {}", snapshot.name(), t.toString());
                 return;
@@ -157,6 +159,40 @@ public final class CameraNdiManager {
         senders.clear();
         lastSeen.clear();
         captureFailureLogged.clear();
+    }
+
+    /**
+     * One-shot diagnostic (runs once per session): checks whether this camera is visible over the
+     * NETWORK (not just the in-process registry that the in-game LED screen reads), and reports it in
+     * chat. Distinguishes "source never advertised on the network" from "external app/firewall issue".
+     */
+    private void startNetworkProbe(String cameraName) {
+        if (networkProbeStarted) {
+            return;
+        }
+        networkProbeStarted = true;
+        Thread probe = new Thread(() -> {
+            java.util.List<String> net = NdiDiscoveryService.getInstance().probeNetworkSources(4000L);
+            boolean selfVisible = net.stream().anyMatch(n -> n.contains(cameraName));
+            Minecraft mc = Minecraft.getInstance();
+            mc.execute(() -> {
+                if (mc.player == null) {
+                    return;
+                }
+                mc.player.displayClientMessage(Component.literal(
+                        "[LumaVision] NDI runtime " + NdiRuntime.getVersion()
+                                + " — network-visible sources: " + net.size()), false);
+                mc.player.displayClientMessage(Component.literal(
+                        net.isEmpty() ? "[LumaVision]   (none — nothing is reaching the network via mDNS)"
+                                : "[LumaVision]   " + String.join(" | ", net)), false);
+                mc.player.displayClientMessage(Component.literal(
+                        "[LumaVision] This camera advertised on the network: "
+                                + (selfVisible ? "YES (external apps should see it — check the receiver/firewall)"
+                                : "NO (source is local-only — NDI runtime is not advertising to the LAN)")), false);
+            });
+        }, "LumaVision-NDI-NetProbe");
+        probe.setDaemon(true);
+        probe.start();
     }
 
     private void removeIfPresent(BlockPos pos) {

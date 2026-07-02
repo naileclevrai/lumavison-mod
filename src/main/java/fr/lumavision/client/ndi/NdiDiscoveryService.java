@@ -75,6 +75,36 @@ public final class NdiDiscoveryService {
         return discoveredSources.get();
     }
 
+    /**
+     * Diagnostic: sources visible over the NETWORK only. Unlike the normal finder (which also lists
+     * in-process/local sources from NDI's local registry), this uses {@code showLocalSources=false},
+     * so a source appearing here proves it is actually being advertised via mDNS to other machines.
+     * Blocks up to {@code waitMs} for discovery. Call off the main thread.
+     */
+    public List<String> probeNetworkSources(long waitMs) {
+        if (!NdiRuntime.isAvailable()) {
+            return List.of();
+        }
+        DevolayFinder netFinder = new DevolayFinder(false); // network/mDNS only — no local registry
+        try {
+            Thread.sleep(Math.max(500L, waitMs));
+            DevolaySource[] sources = netFinder.getCurrentSources();
+            List<String> names = new ArrayList<>(sources.length);
+            for (DevolaySource source : sources) {
+                names.add(source.getSourceName());
+            }
+            return names;
+        } catch (InterruptedException interrupted) {
+            Thread.currentThread().interrupt();
+            return List.of();
+        } catch (Throwable throwable) {
+            LumaVisionMod.LOGGER.error("NDI network probe failed", throwable);
+            return List.of();
+        } finally {
+            netFinder.close();
+        }
+    }
+
     public String getFirstSourceName() {
         List<NdiSourceInfo> sources = discoveredSources.get();
         return sources.isEmpty() ? null : sources.get(0).sourceName();
