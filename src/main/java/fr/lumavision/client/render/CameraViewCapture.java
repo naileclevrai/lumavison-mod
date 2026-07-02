@@ -1,7 +1,7 @@
 package fr.lumavision.client.render;
 
+import com.mojang.blaze3d.pipeline.MainTarget;
 import com.mojang.blaze3d.pipeline.RenderTarget;
-import com.mojang.blaze3d.pipeline.TextureTarget;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexSorting;
@@ -105,7 +105,9 @@ public final class CameraViewCapture {
             if (t.rt != null) {
                 t.rt.destroyBuffers();
             }
-            t.rt = new TextureTarget(w, h, true, Minecraft.ON_OSX);
+            // Use MainTarget (not TextureTarget) so post-processing mods that enhance the main render
+            // target (e.g. Shimmer's IMainTarget) can cast getMainRenderTarget() during renderLevel.
+            t.rt = new MainTarget(w, h);
             t.readBuffer = ByteBuffer.allocateDirect(w * h * 4).order(ByteOrder.nativeOrder());
             t.w = w;
             t.h = h;
