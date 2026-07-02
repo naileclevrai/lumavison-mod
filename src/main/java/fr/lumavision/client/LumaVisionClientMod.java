@@ -4,8 +4,10 @@ import fr.lumavision.LumaVisionMod;
 import fr.lumavision.client.gui.CameraConfigScreen;
 import fr.lumavision.client.gui.ScreenConfigScreen;
 import fr.lumavision.client.render.ScreenRenderer;
+import fr.lumavision.client.render.SeatRenderer;
 import fr.lumavision.client.video.catalog.ClientVideoSourceCatalog;
 import fr.lumavision.registry.ModBlockEntities;
+import fr.lumavision.registry.ModEntities;
 import fr.lumavision.registry.ModMenuTypes;
 import net.minecraft.client.gui.screens.MenuScreens;
 import net.minecraftforge.api.distmarker.Dist;
@@ -32,5 +34,6 @@ public final class LumaVisionClientMod {
     @SubscribeEvent
     public static void registerRenderers(EntityRenderersEvent.RegisterRenderers event) {
         event.registerBlockEntityRenderer(ModBlockEntities.LED_SCREEN.get(), ScreenRenderer::new);
+        event.registerEntityRenderer(ModEntities.CAMERA_SEAT.get(), SeatRenderer::new);
     }
 }
